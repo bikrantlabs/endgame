@@ -137,25 +137,22 @@ make run
 make clean
 ```
 
-Both scripts will:
-1. Configure the project (first time only, downloads and builds dependencies)
-2. Compile the code
-3. Run the executable
+> Note: After creating new cpp/or header files, must run `make install` to compile and link the files.
+
+### Debugging
+1. Install `lldb` via:
+```bash
+sudo apt insall lldb
+```
+
+2. Install VSCode Extension: `CodeLLDB` and `C/C++ extension`
+> Hit `F5` to start debugging.
 
 > **Note:** The first run takes a few minutes because vcpkg is downloading and compiling dependencies. Every run after that is fast — only changed files get recompiled.
 
 ---
 
-## Day-to-Day Workflow
 
-| Task | Windows | Linux |
-|---|---|---|
-| Build and run | `.\run.bat` | `./run.sh` |
-| Just build | `cmake --build --preset default` | `cmake --build --preset default` |
-| Clean build folder | `cmake -E remove_directory build` | `cmake -E remove_directory build` |
-| Reconfigure (new deps) | `cmake --preset default` | `cmake --preset default` |
-
----
 
 ## Adding a New Package
 
@@ -176,6 +173,6 @@ target_link_libraries(my_app PRIVATE new-package::new-package)
 ```
 4. Run configure once to download it:
 ```bash
-cmake --preset default
+make install
 ```
-5. Back to normal: `./run.sh` or `.\run.bat`
+

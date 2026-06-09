@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug endgame",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/endgame",
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

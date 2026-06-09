@@ -5,7 +5,7 @@ else
 endif
 
 install:
-	cmake --preset default
+	cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 
 run:
 	cmake --build --preset default

@@ -92,3 +92,5 @@ build.ninja
 .cache
 
 
+# Local files
+dump.txt
