@@ -95,10 +95,20 @@ void Position::make_move(Move m) {
   int flag = move_flag(m);
 
   Color us = side_to_move;
-
+  Color them = static_cast<Color>(1 - us);
   PieceType pt = piece_on(us, from);
 
   assert(pt != PIECE_TYPE_NB && "make_move: no piece on choosen square");
+
+  if (is_capture(m)) {
+    if (flag == EP_CAPTURE) {
+      int ep_sq = (us == WHITE) ? to - 8 : to + 8; // enpassant
+      remove_piece(them, PAWN, ep_sq);
+    } else {
+      PieceType captured = piece_on(them, to);
+      remove_piece(them, captured, to);
+    }
+  }
 
   move_piece(us, pt, from, to);
   // Track en-passant square.

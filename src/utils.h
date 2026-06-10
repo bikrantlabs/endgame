@@ -8,6 +8,8 @@ namespace Util {
 /// Get the piece name from piece type
 const char *piece_name(PieceType pt);
 
+const char *color_name(Color c);
+
 /// Find single move within the legal move list
 Move find_move(const MoveList &legal, int from, int to);
 

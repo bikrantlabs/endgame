@@ -11,6 +11,8 @@ const char *piece_name(PieceType pt) {
   return (pt < PIECE_TYPE_NB) ? names[pt] : "None";
 }
 
+const char *color_name(Color c) { return c == 0 ? "WHITE" : "BLACK"; }
+
 // Find the move in the legal list that matches from+to, return 0 if not found
 Move find_move(const MoveList &legal, int from, int to) {
 

@@ -24,11 +24,14 @@ int main() {
     if (from.size() == 2) {
       int from_square = parse_square(from);
 
+      Color c = pos.color_on(from_square);
+
       // Get all moves for that square
       gen_moves_for_square(pos, from_square, ml);
 
       PieceType pt = pos.piece_on(turn, from_square);
-      std::cout << "\n Target " << Util::piece_name(pt) << " can move to: \n";
+      std::cout << "\n Target " << Util::color_name(c) << Util::piece_name(pt)
+                << " can move to: \n";
       Util::print_targets(ml);
       std::cout << "\n Where do you want to move " << from << " :";
 

@@ -70,11 +70,14 @@ void gen_pawn_quiet(const Position &pos, MoveList &ml) {
   Color us = pos.side_to_move;
 
   Bitboard pawns = pos.pieces[us][PAWN];
+  Bitboard enemy_occ = pos.occ[1 - us]; // occupancy board for opponent.
   Bitboard empty = ~pos.all_occ;
 
   // Everything that differs between white and black
   const Bitboard start_rank = (us == WHITE) ? RANK_2 : RANK_7;
   const Bitboard promo_rank = (us == WHITE) ? RANK_8 : RANK_1;
+  const int capture_dir_right = (us == WHITE) ? 9 : -7; // Diagonal Left
+  const int capture_dir_left = (us == WHITE) ? 7 : -9;  // Diagonal Left
   const int push_dir = (us == WHITE) ? 8 : -8;
 
   auto shift_forward = [&](Bitboard b) {
@@ -83,9 +86,9 @@ void gen_pawn_quiet(const Position &pos, MoveList &ml) {
 
   // --- Single push ---
   Bitboard single = shift_forward(pawns) & empty;
-  Bitboard bb = single;
-  while (bb) {
-    int to_sq = unset_lsb(bb);
+
+  while (single) {
+    int to_sq = unset_lsb(single);
     int from_sq = to_sq - push_dir;
     // promotion check goes here later
     ml.add(make_move(from_sq, to_sq, QUIET));
@@ -101,6 +104,23 @@ void gen_pawn_quiet(const Position &pos, MoveList &ml) {
       int from_sq = to_sq - push_dir * 2;
       ml.add(make_move(from_sq, to_sq, DOUBLE_PUSH));
     }
+  }
+
+  // Captures- If there is any (opponent) piece in diagonals, mark that move as
+  // capture.
+  // -- Right Capture
+  single = (us == WHITE ? shift_ne(pawns) : shift_se(pawns)) & enemy_occ;
+  while (single) {
+    int to_sq = unset_lsb(single);
+    int from_sq = to_sq - capture_dir_right;
+    ml.add(make_move(from_sq, to_sq, CAPTURE));
+  }
+  // -- Left Capture
+  single = (us == WHITE ? shift_nw(pawns) : shift_sw(pawns)) & enemy_occ;
+  while (single) {
+    int to_sq = unset_lsb(single);
+    int from_sq = to_sq - capture_dir_left;
+    ml.add(make_move(from_sq, to_sq, CAPTURE));
   }
 
   // --- Captures, en passant, promotions go here later ---
