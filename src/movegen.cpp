@@ -66,7 +66,7 @@ void init_movegen() {
 }
 
 //  Pawn quiet move generation
-void gen_pawn_quiet(const Position &pos, MoveList &ml) {
+void gen_pawn_moves(const Position &pos, MoveList &ml) {
   Color us = pos.side_to_move;
 
   Bitboard pawns = pos.pieces[us][PAWN];
@@ -123,13 +123,34 @@ void gen_pawn_quiet(const Position &pos, MoveList &ml) {
     ml.add(make_move(from_sq, to_sq, CAPTURE));
   }
 
-  // --- Captures, en passant, promotions go here later ---
+  // Enpassant square is set whenever opponent double push, just check if my
+  // pawn can reach that file diagonally left or right.
+  // Enpassant square is automatically set in position.cpp->make_move() function
+  // whenever it detects double_push move.
+  if (pos.ep_square != NO_SQUARE) {
+    Bitboard ep_bb = sq_bb(pos.ep_square);
+
+    Bitboard can_capture_right =
+        (us == WHITE) ? shift_ne(pawns) & ep_bb : shift_se(pawns) & ep_bb;
+    Bitboard can_capture_left =
+        (us == WHITE) ? shift_nw(pawns) & ep_bb : shift_sw(pawns) & ep_bb;
+
+    if (can_capture_right) {
+      int from_sq = pos.ep_square - capture_dir_right;
+      ml.add(make_move(from_sq, pos.ep_square, EP_CAPTURE));
+    }
+
+    if (can_capture_left) {
+      int from_sq = pos.ep_square - capture_dir_left;
+      ml.add(make_move(from_sq, pos.ep_square, EP_CAPTURE));
+    }
+  }
   // same pattern: shift_ne/nw for white, shift_se/sw for black
   // just add capture_dir_left / capture_dir_right constants above
 }
 
 void gen_all_quiet(const Position &pos, MoveList &ml) {
-  gen_pawn_quiet(pos, ml);
+  gen_pawn_moves(pos, ml);
 }
 
 /// Generate moves only for the piece on a specific square

@@ -13,7 +13,7 @@
 void init_movegen();
 
 // Pawn quiet moves: single push + double push (no captures, no promotions yet)
-void gen_pawn_quiet(const Position &pos, MoveList &ml);
+void gen_pawn_moves(const Position &pos, MoveList &ml);
 
 // Knight quiet moves
 void gen_knight_quiet(const Position &pos, MoveList &ml);
