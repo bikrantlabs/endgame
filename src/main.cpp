@@ -1,4 +1,5 @@
 #include "movegen.h"
+#include "perft.h"
 #include "position.h"
 #include "types.h"
 #include "utils.h"
@@ -9,12 +10,8 @@ int main() {
   init_movegen();
   Position pos;
   pos.set_startpos();
-  // manually replicate the position from the screenshot
-  pos.make_move(make_move(D2, D4, DOUBLE_PUSH)); // white d4
-  pos.make_move(make_move(D7, D5, DOUBLE_PUSH)); // black d5
-  pos.make_move(make_move(C2, C3, DOUBLE_PUSH)); // white
-  pos.make_move(make_move(E7, E6, DOUBLE_PUSH)); // black
-  pos.make_move(make_move(C1, G5, DOUBLE_PUSH)); // white
+  perft_divide(pos, 6);
+  // manually replicate the position
 
   while (true) {
     print_board(pos);
@@ -51,7 +48,10 @@ int main() {
                   << to_square;
         continue;
       }
-      pos.make_move(move);
+      {
+        StateInfo st;
+        pos.make_move(move, st);
+      }
 
     } else {
       std::cout << "Please select a valid square: eg. e2\n";

@@ -1,6 +1,19 @@
 #pragma once
 #include "types.h"
 // ─────────────────────────────────────────────
+//  StateInfo — snapshot for unmake_move
+// ─────────────────────────────────────────────
+struct StateInfo {
+  Move move;
+  PieceType moved_pt; // PAWN for promotions (original piece)
+  PieceType captured; // PIECE_TYPE_NB if no capture
+  int captured_sq;    // where captured piece was (differs from `to` for EP)
+  int ep_square;
+  int castling_rights;
+  int halfmove_clock;
+};
+
+// ─────────────────────────────────────────────
 //  Position
 //  Stores the complete board state using bitboards.
 //  pieces[color][pieceType] — one bitboard per (color, piece) pair.
@@ -49,10 +62,13 @@ public:
   // Is the square attacked by any piece of given color?
   bool is_square_attacked(int sq, Color c) const;
 
+  // Is our king checked?
+  bool is_in_check() const;
+
   // Make / Unmake
 
-  void make_move(Move m);
-  void unmake_move(Move m, PieceType moved_pt);
+  void make_move(Move m, StateInfo &st);
+  void unmake_move(const StateInfo &st);
 };
 
 // Print the board. If highlight != 0, marks those squares with '*'.

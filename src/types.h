@@ -198,6 +198,8 @@ inline int move_flag(Move m) { return ((m >> 12)); }
 
 inline bool is_capture(Move m) { return (move_flag(m) & CAPTURE) != 0; }
 
+inline bool is_promotion(Move m) { return move_flag(m) >= PROMO_N; }
+
 // Square helpers
 /// Get the file index of Square s
 /// Eg: Square G4(30) -> File 6(which is g file)
@@ -246,7 +248,10 @@ inline bool test_bit(Bitboard b, int sq) { return (b >> sq) & 1; }
 
 /// Get the index of Lowest set bit square
 /// Example: b = 00101000; index = 3.
-inline int lsb(Bitboard b) { return __builtin_ctzll(b); }
+inline int lsb(Bitboard b) {
+  assert(b != 0);
+  return __builtin_ctzll(b);
+}
 
 /// Unset lowest set bit, return its index
 inline int unset_lsb(Bitboard &b) {
@@ -254,6 +259,8 @@ inline int unset_lsb(Bitboard &b) {
   b &= b - 1;
   return sq;
 }
+
+
 
 /// Get total 1s in the board
 inline int popcount(Bitboard b) { return __builtin_popcountll(b); }
@@ -272,7 +279,10 @@ struct MoveList {
   Move moves[256];
   int count = 0;
 
-  void add(Move m) { moves[count++] = m; }
+  void add(Move m) {
+    assert(count < 256 && "MoveList overflow");
+    moves[count++] = m;
+  }
   void clear() { count = 0; }
   bool empty() const { return count == 0; }
   Move operator[](int i) const { return moves[i]; }

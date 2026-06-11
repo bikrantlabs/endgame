@@ -35,7 +35,10 @@ void gen_all_moves(const Position &pos, MoveList &ml);
 
 // Generate moves only for the piece on sq (for the selected-piece UI)
 // Returns false if there's no friendly piece on sq.
-bool gen_moves_for_square(const Position &pos, int sq, MoveList &ml);
+bool gen_moves_for_square(Position &pos, int sq, MoveList &ml);
+
+// Generate only legal moves (filters out moves that leave king in check)
+void gen_legal_moves(Position &pos, MoveList &ml);
 
 // ─────────────────────────────────────────────
 //  Attack tables (precomputed at startup)

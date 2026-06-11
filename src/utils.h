@@ -1,5 +1,6 @@
 #pragma once
 
+#include "position.h"
 #include "types.h"
 
 // Declare the namespace
@@ -7,6 +8,12 @@ namespace Util {
 
 /// Get the piece name from piece type
 const char *piece_name(PieceType pt);
+
+int king_square(const Position &pos, Color side);
+
+// Change any move to it's string value(used for perft)
+/// Move 1234 -> e2e4..
+std::string move_to_string(Move m);
 
 const char *color_name(Color c);
 

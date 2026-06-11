@@ -1,6 +1,7 @@
 #include "movegen.h"
 #include "magic_bb.h"
 #include "types.h"
+#include "utils.h"
 #include <cassert>
 
 // The knight attacks and king attacks are precomputed.
@@ -288,7 +289,7 @@ void gen_queen_moves(const Position &pos, MoveList &ml) {
   }
 }
 
-void gen_all_quiet(const Position &pos, MoveList &ml) {
+void gen_all_moves(const Position &pos, MoveList &ml) {
   gen_pawn_moves(pos, ml);
   gen_knight_moves(pos, ml);
   gen_king_moves(pos, ml);
@@ -296,10 +297,38 @@ void gen_all_quiet(const Position &pos, MoveList &ml) {
   gen_queen_moves(pos, ml);
   gen_bishop_moves(pos, ml);
 }
+void gen_legal_moves(Position &pos, MoveList &legal) {
+
+  MoveList pseudo;
+  gen_all_moves(pos, pseudo);
+
+  legal.clear();
+
+  for (int i = 0; i < pseudo.count; i++) {
+
+    Move m = pseudo[i];
+
+    StateInfo st;
+    pos.make_move(m, st);
+
+    // After make_move, side_to_move is the opponent.
+    // Check if the side that just moved left their king in check.
+    Color us = static_cast<Color>(1 - pos.side_to_move);
+    Color them = pos.side_to_move;
+    bool in_check =
+        pos.is_square_attacked(Util::king_square(pos, us), them);
+
+    if (!in_check) {
+      legal.add(m);
+    }
+
+    pos.unmake_move(st);
+  }
+}
 
 /// Generate moves only for the piece on a specific square
 /// Only use this method for UI purposes, not for AI.
-bool gen_moves_for_square(const Position &pos, int sq, MoveList &ml) {
+bool gen_moves_for_square(Position &pos, int sq, MoveList &ml) {
   Color us = pos.side_to_move;
   if (pos.color_on(sq) != us)
     return false; // no friendly piece there
@@ -310,7 +339,7 @@ bool gen_moves_for_square(const Position &pos, int sq, MoveList &ml) {
 
   // Generate all moves for this side, then filter to those from sq
   MoveList all;
-  gen_all_quiet(pos, all);
+  gen_legal_moves(pos, all);
 
   for (int i = 0; i < all.count; ++i) {
     if (move_from(all.moves[i]) == sq)

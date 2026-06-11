@@ -2,6 +2,7 @@
 #include "magic_bb.h"
 #include "movegen.h"
 #include "types.h"
+#include "utils.h"
 #include <iostream>
 
 void Position::clear() {
@@ -91,7 +92,16 @@ void Position::set_startpos() {
     place_piece(BLACK, PAWN, sq_of(f, 6));
 }
 
-void Position::make_move(Move m) {
+void Position::make_move(Move m, StateInfo &st) {
+  //  Save state
+  st.move = m;
+  st.moved_pt = PIECE_TYPE_NB;
+  st.captured = PIECE_TYPE_NB;
+  st.captured_sq = NO_SQUARE;
+  st.ep_square = ep_square;
+  st.castling_rights = castling_rights;
+  st.halfmove_clock = halfmove_clock;
+
   int from = move_from(m);
   int to = move_to(m);
   int flag = move_flag(m);
@@ -101,17 +111,22 @@ void Position::make_move(Move m) {
   PieceType pt = piece_on(us, from);
 
   assert(pt != PIECE_TYPE_NB && "make_move: no piece on choosen square");
+  st.moved_pt = pt;
 
+  //  Handle capture
   if (is_capture(m)) {
     if (flag == EP_CAPTURE) {
-      int ep_sq = (us == WHITE) ? to - 8 : to + 8; // enpassant
-      remove_piece(them, PAWN, ep_sq);
+      st.captured = PAWN;
+      st.captured_sq = (us == WHITE) ? to - 8 : to + 8;
+      remove_piece(them, PAWN, st.captured_sq);
     } else {
-      PieceType captured = piece_on(them, to);
-      remove_piece(them, captured, to);
+      st.captured = piece_on(them, to);
+      st.captured_sq = to;
+      remove_piece(them, st.captured, to);
     }
   }
 
+  //  Handle castling rook movement
   if (flag == KING_CASTLE) {
     int rook_from = (us == WHITE) ? H1 : H8;
     int rook_to = (us == WHITE) ? F1 : F8;
@@ -121,15 +136,22 @@ void Position::make_move(Move m) {
     int rook_to = (us == WHITE) ? D1 : D8;
     move_piece(us, ROOK, rook_from, rook_to);
   }
+
+  //  Move the piece
   move_piece(us, pt, from, to);
 
-  // If piece type is King, clear it's castling rights.
+  //  Handle promotion (replace pawn with promoted piece)
+  if (is_promotion(m)) {
+    PieceType promo_pt = static_cast<PieceType>((flag & 3) + KNIGHT);
+    remove_piece(us, PAWN, to);
+    place_piece(us, promo_pt, to);
+  }
+
+  //  Update castling rights
   if (pt == KING) {
     castling_rights &=
         (us == WHITE) ? ~(WK_CASTLE | WQ_CASTLE) : ~(BK_CASTLE | BQ_CASTLE);
   }
-
-  // Rook moved from home square - clear castling rights
   if (from == A1)
     castling_rights &= ~WQ_CASTLE;
   if (from == H1)
@@ -150,67 +172,103 @@ void Position::make_move(Move m) {
       castling_rights &= ~BK_CASTLE;
   }
 
-  // Track en-passant square.
+  //  En-passant
   ep_square = NO_SQUARE;
-
-  // if opponent has make double push, ep_square is diagonal movement.
-  if (flag == DOUBLE_PUSH) {
+  if (flag == DOUBLE_PUSH)
     ep_square = (us == WHITE) ? from + 8 : from - 8;
-  }
 
+  //  Clocks
   halfmove_clock = (pt == PAWN) ? 0 : halfmove_clock + 1;
   if (us == BLACK)
     ++fullmove_number;
 
-  // Now it's opponent's turn
-  side_to_move = static_cast<Color>(1 - us);
+  side_to_move = them;
 }
 
-bool Position::is_square_attacked(int sq, Color c) const {
-  Bitboard pawns = pieces[c][PAWN];
+bool Position::is_square_attacked(int sq, Color attacker_color) const {
+  Bitboard pawns = pieces[attacker_color][PAWN];
   Bitboard bb = sq_bb(sq);
-  Bitboard pawn_attacks;
-
+  Bitboard pawn_attacks = 0;
   // Shift that single square diagonally south or north and check if there are
   // PAWNS.
-  if (c == WHITE) {
+  if (attacker_color == WHITE) {
     pawn_attacks = (shift_se(bb) | shift_sw(bb)) & pawns;
 
-  } else if (c == BLACK) {
+  } else if (attacker_color == BLACK) {
     pawn_attacks = (shift_ne(bb) | shift_nw(bb)) & pawns;
   }
 
   // Check if the square is in attack of Knight AND those squares have
   // right-color knight.
-  Bitboard knight_attacks = KNIGHT_ATTACKS[sq] & pieces[c][KNIGHT];
+  Bitboard knight_attacks = KNIGHT_ATTACKS[sq] & pieces[attacker_color][KNIGHT];
 
   // If the square is in range of bishop or queen attack AND those square has
   // either enemy bishop or queen
   Bitboard bishop_or_queen_attacks =
-      bishop_attacks(sq, all_occ) & (pieces[c][BISHOP] | pieces[c][QUEEN]);
+      bishop_attacks(sq, all_occ) &
+      (pieces[attacker_color][BISHOP] | pieces[attacker_color][QUEEN]);
 
   // Similar to bishop_attacks
   Bitboard rook_or_queen_attacks =
-      rook_attacks(sq, all_occ) & (pieces[c][ROOK] | pieces[c][QUEEN]);
+      rook_attacks(sq, all_occ) &
+      (pieces[attacker_color][ROOK] | pieces[attacker_color][QUEEN]);
 
-  Bitboard king_attacks = KING_ATTACKS[sq] & pieces[c][KING];
+  Bitboard king_attacks = KING_ATTACKS[sq] & pieces[attacker_color][KING];
 
-  return pawn_attacks | knight_attacks | knight_attacks |
-         bishop_or_queen_attacks | rook_or_queen_attacks | king_attacks;
+  return pawn_attacks | knight_attacks | bishop_or_queen_attacks |
+         rook_or_queen_attacks | king_attacks;
 }
 
-// Simple unmake for quiet moves — caller provides the moved piece type
-void Position::unmake_move(Move m, PieceType moved_pt) {
+// Checks if the king is in check
+bool Position::is_in_check() const {
+  // Get king's square:
+  int sq = Util::king_square(*this, side_to_move);
+
+  Color enemy = static_cast<Color>(1 - side_to_move);
+
+  return is_square_attacked(sq, enemy);
+}
+void Position::unmake_move(const StateInfo &st) {
+  Move m = st.move;
   int from = move_from(m);
   int to = move_to(m);
+  int flag = move_flag(m);
+
   Color us = static_cast<Color>(1 - side_to_move); // who just moved
 
-  move_piece(us, moved_pt, to, from); // reverse the move
+  //  Reverse promotion (remove promoted piece, restore pawn) ──
+  if (is_promotion(m)) {
+    PieceType promo_pt = static_cast<PieceType>((flag & 3) + KNIGHT);
+    remove_piece(us, promo_pt, to);
+    place_piece(us, PAWN, to);
+  }
+
+  //  Reverse piece movement
+  move_piece(us, st.moved_pt, to, from);
+
+  //  Reverse castling rook
+  if (flag == KING_CASTLE) {
+    int rook_from = (us == WHITE) ? H1 : H8;
+    int rook_to = (us == WHITE) ? F1 : F8;
+    move_piece(us, ROOK, rook_to, rook_from);
+  } else if (flag == QUEEN_CASTLE) {
+    int rook_from = (us == WHITE) ? A1 : A8;
+    int rook_to = (us == WHITE) ? D1 : D8;
+    move_piece(us, ROOK, rook_to, rook_from);
+  }
+
+  //  Restore captured piece
+  if (st.captured != PIECE_TYPE_NB)
+    place_piece(static_cast<Color>(1 - us), st.captured, st.captured_sq);
+
+  //  Restore state from snapshot
+  ep_square = st.ep_square;
+  castling_rights = st.castling_rights;
+  halfmove_clock = st.halfmove_clock;
+  side_to_move = us;
 
   if (us == BLACK)
     --fullmove_number;
-  side_to_move = us;
-  ep_square = NO_SQUARE; // simplified: we'll track this properly later
 }
 
 static char piece_char(Color c, PieceType pt) {
