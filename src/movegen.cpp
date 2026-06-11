@@ -172,12 +172,36 @@ void gen_knight_moves(const Position &pos, MoveList &ml) {
       }
     }
   }
-  // while(knigh)
+}
+void gen_king_moves(const Position &pos, MoveList &ml) {
+  Color us = pos.side_to_move;
+
+  Bitboard king = pos.pieces[us][KING];
+  Bitboard enemy_occ = pos.occ[1 - us]; // occupancy board for opponent.
+
+  while (king) {
+    int from = unset_lsb(king);
+
+    // Filter out attacks squares where there is friendly pieces.
+    Bitboard attacks = KING_ATTACKS[from] & ~pos.occ[us];
+
+    while (attacks) {
+      int to = unset_lsb(attacks);
+
+      // If target(to) square contains any enemy piece
+      if (test_bit(enemy_occ, to)) {
+        ml.add(make_move(from, to, CAPTURE));
+      } else {
+        ml.add(make_move(from, to, QUIET));
+      }
+    }
+  }
 }
 
 void gen_all_quiet(const Position &pos, MoveList &ml) {
   gen_pawn_moves(pos, ml);
   gen_knight_moves(pos, ml);
+  gen_king_moves(pos, ml);
 }
 
 /// Generate moves only for the piece on a specific square

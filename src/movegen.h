@@ -28,7 +28,7 @@ void gen_rook_quiet(const Position &pos, MoveList &ml);
 void gen_queen_quiet(const Position &pos, MoveList &ml);
 
 // King quiet moves (no castling yet)
-void gen_king_quiet(const Position &pos, MoveList &ml);
+void gen_king_moves(const Position &pos, MoveList &ml);
 
 // Generate ALL quiet moves for the side to move
 void gen_all_quiet(const Position &pos, MoveList &ml);
