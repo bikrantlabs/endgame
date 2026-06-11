@@ -16,7 +16,7 @@ void init_movegen();
 void gen_pawn_moves(const Position &pos, MoveList &ml);
 
 // Knight quiet moves
-void gen_knight_quiet(const Position &pos, MoveList &ml);
+void gen_knight_moves(const Position &pos, MoveList &ml);
 
 // Bishop quiet moves (ray casting)
 void gen_bishop_quiet(const Position &pos, MoveList &ml);
