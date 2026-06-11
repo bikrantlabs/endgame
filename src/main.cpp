@@ -12,6 +12,9 @@ int main() {
   // manually replicate the position from the screenshot
   pos.make_move(make_move(D2, D4, DOUBLE_PUSH)); // white d4
   pos.make_move(make_move(D7, D5, DOUBLE_PUSH)); // black d5
+  pos.make_move(make_move(C2, C3, DOUBLE_PUSH)); // white
+  pos.make_move(make_move(E7, E6, DOUBLE_PUSH)); // black
+  pos.make_move(make_move(C1, G5, DOUBLE_PUSH)); // white
 
   while (true) {
     print_board(pos);

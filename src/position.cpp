@@ -1,4 +1,6 @@
 #include "position.h"
+#include "magic_bb.h"
+#include "movegen.h"
 #include "types.h"
 #include <iostream>
 
@@ -110,7 +112,44 @@ void Position::make_move(Move m) {
     }
   }
 
+  if (flag == KING_CASTLE) {
+    int rook_from = (us == WHITE) ? H1 : H8;
+    int rook_to = (us == WHITE) ? F1 : F8;
+    move_piece(us, ROOK, rook_from, rook_to);
+  } else if (flag == QUEEN_CASTLE) {
+    int rook_from = (us == WHITE) ? A1 : A8;
+    int rook_to = (us == WHITE) ? D1 : D8;
+    move_piece(us, ROOK, rook_from, rook_to);
+  }
   move_piece(us, pt, from, to);
+
+  // If piece type is King, clear it's castling rights.
+  if (pt == KING) {
+    castling_rights &=
+        (us == WHITE) ? ~(WK_CASTLE | WQ_CASTLE) : ~(BK_CASTLE | BQ_CASTLE);
+  }
+
+  // Rook moved from home square - clear castling rights
+  if (from == A1)
+    castling_rights &= ~WQ_CASTLE;
+  if (from == H1)
+    castling_rights &= ~WK_CASTLE;
+  if (from == A8)
+    castling_rights &= ~BQ_CASTLE;
+  if (from == H8)
+    castling_rights &= ~BK_CASTLE;
+
+  if (is_capture(m) && flag != EP_CAPTURE) {
+    if (to == A1)
+      castling_rights &= ~WQ_CASTLE;
+    if (to == H1)
+      castling_rights &= ~WK_CASTLE;
+    if (to == A8)
+      castling_rights &= ~BQ_CASTLE;
+    if (to == H8)
+      castling_rights &= ~BK_CASTLE;
+  }
+
   // Track en-passant square.
   ep_square = NO_SQUARE;
 
@@ -125,6 +164,39 @@ void Position::make_move(Move m) {
 
   // Now it's opponent's turn
   side_to_move = static_cast<Color>(1 - us);
+}
+
+bool Position::is_square_attacked(int sq, Color c) const {
+  Bitboard pawns = pieces[c][PAWN];
+  Bitboard bb = sq_bb(sq);
+  Bitboard pawn_attacks;
+
+  // Shift that single square diagonally south or north and check if there are
+  // PAWNS.
+  if (c == WHITE) {
+    pawn_attacks = (shift_se(bb) | shift_sw(bb)) & pawns;
+
+  } else if (c == BLACK) {
+    pawn_attacks = (shift_ne(bb) | shift_nw(bb)) & pawns;
+  }
+
+  // Check if the square is in attack of Knight AND those squares have
+  // right-color knight.
+  Bitboard knight_attacks = KNIGHT_ATTACKS[sq] & pieces[c][KNIGHT];
+
+  // If the square is in range of bishop or queen attack AND those square has
+  // either enemy bishop or queen
+  Bitboard bishop_or_queen_attacks =
+      bishop_attacks(sq, all_occ) & (pieces[c][BISHOP] | pieces[c][QUEEN]);
+
+  // Similar to bishop_attacks
+  Bitboard rook_or_queen_attacks =
+      rook_attacks(sq, all_occ) & (pieces[c][ROOK] | pieces[c][QUEEN]);
+
+  Bitboard king_attacks = KING_ATTACKS[sq] & pieces[c][KING];
+
+  return pawn_attacks | knight_attacks | knight_attacks |
+         bishop_or_queen_attacks | rook_or_queen_attacks | king_attacks;
 }
 
 // Simple unmake for quiet moves — caller provides the moved piece type

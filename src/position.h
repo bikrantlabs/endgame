@@ -46,6 +46,9 @@ public:
   // Is sq occupied by any piece?
   bool is_occupied(int sq) const { return test_bit(all_occ, sq); }
 
+  // Is the square attacked by any piece of given color?
+  bool is_square_attacked(int sq, Color c) const;
+
   // Make / Unmake
 
   void make_move(Move m);

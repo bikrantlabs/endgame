@@ -177,24 +177,70 @@ void gen_knight_moves(const Position &pos, MoveList &ml) {
 }
 void gen_king_moves(const Position &pos, MoveList &ml) {
   Color us = pos.side_to_move;
+  Color them = static_cast<Color>(1 - us);
 
   Bitboard king = pos.pieces[us][KING];
-  Bitboard enemy_occ = pos.occ[1 - us]; // occupancy board for opponent.
+  Bitboard enemy_occ = pos.occ[them];
 
   while (king) {
     int from = unset_lsb(king);
 
-    // Filter out attacks squares where there is friendly pieces.
+    // Normal king moves
     Bitboard attacks = KING_ATTACKS[from] & ~pos.occ[us];
 
     while (attacks) {
       int to = unset_lsb(attacks);
 
-      // If target(to) square contains any enemy piece
-      if (test_bit(enemy_occ, to)) {
+      // King may not move into check
+      if (pos.is_square_attacked(to, them))
+        continue;
+
+      if (test_bit(enemy_occ, to))
         ml.add(make_move(from, to, CAPTURE));
-      } else {
+      else
         ml.add(make_move(from, to, QUIET));
+    }
+
+    // Castling
+
+    int king_side_right = (us == WHITE) ? WK_CASTLE : BK_CASTLE;
+
+    int queen_side_right = (us == WHITE) ? WQ_CASTLE : BQ_CASTLE;
+
+    int king_dest = (us == WHITE) ? G1 : G8;
+
+    int queen_dest = (us == WHITE) ? C1 : C8;
+
+    int king_path1 = (us == WHITE) ? F1 : F8;
+
+    int king_path2 = (us == WHITE) ? G1 : G8;
+
+    int queen_path1 = (us == WHITE) ? D1 : D8;
+
+    int queen_path2 = (us == WHITE) ? C1 : C8;
+
+    int queen_path3 = (us == WHITE) ? B1 : B8;
+
+    // Kingside castle
+    if (pos.castling_rights & king_side_right) {
+
+      if (!pos.is_occupied(king_path1) && !pos.is_occupied(king_path2) &&
+          !pos.is_square_attacked(from, them) &&
+          !pos.is_square_attacked(king_path1, them) &&
+          !pos.is_square_attacked(king_path2, them)) {
+        ml.add(make_move(from, king_dest, KING_CASTLE));
+      }
+    }
+
+    // Queenside castle
+    if (pos.castling_rights & queen_side_right) {
+
+      if (!pos.is_occupied(queen_path1) && !pos.is_occupied(queen_path2) &&
+          !pos.is_occupied(queen_path3) &&
+          !pos.is_square_attacked(from, them) &&
+          !pos.is_square_attacked(queen_path1, them) &&
+          !pos.is_square_attacked(queen_path2, them)) {
+        ml.add(make_move(from, queen_dest, QUEEN_CASTLE));
       }
     }
   }

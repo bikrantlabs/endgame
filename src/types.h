@@ -170,6 +170,15 @@ enum MoveFlag : uint16_t {
   PROMO_CAP_Q = 15
 };
 
+enum CastlingSide { KING_SIDE, QUEEN_SIDE, CASTLING_SIDE_NB = 2 };
+
+enum CastlingRight : int {
+  WK_CASTLE = 1 << 0, // 0b0001
+  WQ_CASTLE = 1 << 1, // 0b0010
+  BK_CASTLE = 1 << 2, // 0b0100
+  BQ_CASTLE = 1 << 3, // 0b1000
+};
+
 /// Make move from starting square to destination square with flag.
 /// @returns -  16-bit encoded move
 inline Move make_move(int from, int to, MoveFlag flag = QUIET) {
