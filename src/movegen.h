@@ -19,21 +19,21 @@ void gen_pawn_moves(const Position &pos, MoveList &ml);
 void gen_knight_moves(const Position &pos, MoveList &ml);
 
 // Bishop quiet moves (ray casting)
-void gen_bishop_quiet(const Position &pos, MoveList &ml);
+void gen_bishop_moves(const Position &pos, MoveList &ml);
 
-// Rook quiet moves (ray casting)
-void gen_rook_quiet(const Position &pos, MoveList &ml);
+// Rook  moves (ray casting)
+void gen_rook_moves(const Position &pos, MoveList &ml);
 
-// Queen quiet moves (bishop + rook combined)
-void gen_queen_quiet(const Position &pos, MoveList &ml);
+// Queen  moves (bishop + rook combined)
+void gen_queen_moves(const Position &pos, MoveList &ml);
 
-// King quiet moves (no castling yet)
+// King  moves (no castling yet)
 void gen_king_moves(const Position &pos, MoveList &ml);
 
-// Generate ALL quiet moves for the side to move
-void gen_all_quiet(const Position &pos, MoveList &ml);
+// Generate ALL  moves for the side to move
+void gen_all_moves(const Position &pos, MoveList &ml);
 
-// Generate quiet moves only for the piece on sq (for the selected-piece UI)
+// Generate moves only for the piece on sq (for the selected-piece UI)
 // Returns false if there's no friendly piece on sq.
 bool gen_moves_for_square(const Position &pos, int sq, MoveList &ml);
 

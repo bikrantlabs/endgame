@@ -1,4 +1,5 @@
 #include "movegen.h"
+#include "magic_bb.h"
 #include "types.h"
 #include <cassert>
 
@@ -63,6 +64,7 @@ static void init_king_attacks() {
 void init_movegen() {
   init_knight_attacks();
   init_king_attacks();
+  init_magic_bitboards();
 }
 
 //  Pawn quiet move generation
@@ -197,11 +199,56 @@ void gen_king_moves(const Position &pos, MoveList &ml) {
     }
   }
 }
+void gen_rook_moves(const Position &pos, MoveList &ml) {
+  Color us = pos.side_to_move;
+  Bitboard rooks = pos.pieces[us][ROOK];
+  Bitboard enemy = pos.occ[1 - us];
+
+  while (rooks) {
+    int from = unset_lsb(rooks);
+    Bitboard attacks = rook_attacks(from, pos.all_occ) & ~pos.occ[us];
+    while (attacks) {
+      int to = unset_lsb(attacks);
+      ml.add(make_move(from, to, test_bit(enemy, to) ? CAPTURE : QUIET));
+    }
+  }
+}
+void gen_bishop_moves(const Position &pos, MoveList &ml) {
+  Color us = pos.side_to_move;
+  Bitboard bishop = pos.pieces[us][BISHOP];
+  Bitboard enemy = pos.occ[1 - us];
+
+  while (bishop) {
+    int from = unset_lsb(bishop);
+    Bitboard attacks = bishop_attacks(from, pos.all_occ) & ~pos.occ[us];
+    while (attacks) {
+      int to = unset_lsb(attacks);
+      ml.add(make_move(from, to, test_bit(enemy, to) ? CAPTURE : QUIET));
+    }
+  }
+}
+void gen_queen_moves(const Position &pos, MoveList &ml) {
+  Color us = pos.side_to_move;
+  Bitboard queen = pos.pieces[us][QUEEN];
+  Bitboard enemy = pos.occ[1 - us];
+
+  while (queen) {
+    int from = unset_lsb(queen);
+    Bitboard attacks = queen_attacks(from, pos.all_occ) & ~pos.occ[us];
+    while (attacks) {
+      int to = unset_lsb(attacks);
+      ml.add(make_move(from, to, test_bit(enemy, to) ? CAPTURE : QUIET));
+    }
+  }
+}
 
 void gen_all_quiet(const Position &pos, MoveList &ml) {
   gen_pawn_moves(pos, ml);
   gen_knight_moves(pos, ml);
   gen_king_moves(pos, ml);
+  gen_rook_moves(pos, ml);
+  gen_queen_moves(pos, ml);
+  gen_bishop_moves(pos, ml);
 }
 
 /// Generate moves only for the piece on a specific square
