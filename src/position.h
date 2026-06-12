@@ -4,6 +4,7 @@
 //  StateInfo — snapshot for unmake_move
 // ─────────────────────────────────────────────
 struct StateInfo {
+  ZobrishKey hash;
   Move move;
   PieceType moved_pt; // PAWN for promotions (original piece)
   PieceType captured; // PIECE_TYPE_NB if no capture
@@ -34,6 +35,9 @@ public:
   int ep_square;       // en passant target square, or NO_SQUARE
   int halfmove_clock;  // for 50-move rule
   int fullmove_number;
+  ZobrishKey hash;
+
+  void compute_hash();
 
   // Clear everything
   void clear();
@@ -51,7 +55,7 @@ public:
   void move_piece(Color c, PieceType pt, int from, int to);
 
   // Which piece type is on sq for color c? Returns PIECE_TYPE_NB if none.
-  PieceType piece_on(Color c, int sq) const;
+  PieceType piece_type_on(Color c, int sq) const;
 
   // Which color's piece is on sq? Returns COLOR_NB if empty.
   Color color_on(int sq) const;

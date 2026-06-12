@@ -3,7 +3,34 @@
 #include "movegen.h"
 #include "types.h"
 #include "utils.h"
+#include "zobrist.h"
 #include <iostream>
+
+void Position::compute_hash() {
+  hash = 0;
+
+  // Every piece on every square
+  for (int c = 0; c < COLOR_NB; ++c)
+    for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) {
+      Bitboard bb = pieces[c][pt];
+      while (bb) {
+        int sq = unset_lsb(bb);
+        hash ^= ZOBRIST.pieces[piece_of(static_cast<Color>(c),
+                                        static_cast<PieceType>(pt))][sq];
+      }
+    }
+
+  // Side to move (XOR in when it's black's turn)
+  if (side_to_move == BLACK)
+    hash ^= ZOBRIST.side;
+
+  // Castling rights
+  hash ^= ZOBRIST.castling[castling_rights];
+
+  // En-passant file (only when an EP capture is actually possible)
+  if (ep_square != NO_SQUARE)
+    hash ^= ZOBRIST.ep[sq_file(ep_square)];
+}
 
 void Position::clear() {
   for (int c = 0; c < COLOR_NB; ++c)
@@ -16,6 +43,7 @@ void Position::clear() {
   ep_square = NO_SQUARE;
   halfmove_clock = 0;
   fullmove_number = 1;
+  hash = 0;
 }
 
 // Place piece of type pt, of color c in square
@@ -45,7 +73,7 @@ void Position::move_piece(Color c, PieceType pt, int from, int to) {
   all_occ ^= mask;
 }
 
-PieceType Position::piece_on(Color c, int s) const {
+PieceType Position::piece_type_on(Color c, int s) const {
   Bitboard bit = sq_bb(s);
   for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
     if (pieces[c][pt] & bit)
@@ -90,6 +118,8 @@ void Position::set_startpos() {
   place_piece(BLACK, KING, E8);
   for (int f = 0; f < 8; ++f)
     place_piece(BLACK, PAWN, sq_of(f, 6));
+
+  compute_hash();
 }
 
 void Position::make_move(Move m, StateInfo &st) {
@@ -101,6 +131,7 @@ void Position::make_move(Move m, StateInfo &st) {
   st.ep_square = ep_square;
   st.castling_rights = castling_rights;
   st.halfmove_clock = halfmove_clock;
+  st.hash = hash;
 
   int from = move_from(m);
   int to = move_to(m);
@@ -108,20 +139,35 @@ void Position::make_move(Move m, StateInfo &st) {
 
   Color us = side_to_move;
   Color them = static_cast<Color>(1 - us);
-  PieceType pt = piece_on(us, from);
+
+  PieceType pt = piece_type_on(us, from);
 
   assert(pt != PIECE_TYPE_NB && "make_move: no piece on choosen square");
+  assert(us != COLOR_NB && "make_move: no valid color");
   st.moved_pt = pt;
+
+  Piece moving_piece = piece_of(us, pt);
+
+  //   Castling rights and EP file must be removed before they are updated.
+  hash ^= ZOBRIST.castling[castling_rights];
+  if (ep_square != NO_SQUARE)
+    hash ^= ZOBRIST.ep[sq_file(ep_square)];
+  // XOR OUT the moving piece from its source square
+  hash ^= ZOBRIST.pieces[moving_piece][from];
 
   //  Handle capture
   if (is_capture(m)) {
     if (flag == EP_CAPTURE) {
       st.captured = PAWN;
       st.captured_sq = (us == WHITE) ? to - 8 : to + 8;
+      // XOR out the captured pawn from ITS square
+      hash ^= ZOBRIST.pieces[piece_of(them, PAWN)][st.captured_sq];
       remove_piece(them, PAWN, st.captured_sq);
     } else {
-      st.captured = piece_on(them, to);
+      st.captured = piece_type_on(them, to);
       st.captured_sq = to;
+      // XOR out the captured piece from the destination square
+      hash ^= ZOBRIST.pieces[piece_of(them, st.captured)][to];
       remove_piece(them, st.captured, to);
     }
   }
@@ -130,10 +176,14 @@ void Position::make_move(Move m, StateInfo &st) {
   if (flag == KING_CASTLE) {
     int rook_from = (us == WHITE) ? H1 : H8;
     int rook_to = (us == WHITE) ? F1 : F8;
+    hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_from];
+    hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_to];
     move_piece(us, ROOK, rook_from, rook_to);
   } else if (flag == QUEEN_CASTLE) {
     int rook_from = (us == WHITE) ? A1 : A8;
     int rook_to = (us == WHITE) ? D1 : D8;
+    hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_from];
+    hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_to];
     move_piece(us, ROOK, rook_from, rook_to);
   }
 
@@ -142,9 +192,14 @@ void Position::make_move(Move m, StateInfo &st) {
 
   //  Handle promotion (replace pawn with promoted piece)
   if (is_promotion(m)) {
-    PieceType promo_pt = static_cast<PieceType>((flag & 3) + KNIGHT);
+    PieceType promo_pt = get_promotion_piece(m);
+    // The pawn moved to 'to' during move_piece() call; now swap it for the
+    // promoted piece
+    hash ^= ZOBRIST.pieces[piece_of(us, promo_pt)][to];
     remove_piece(us, PAWN, to);
     place_piece(us, promo_pt, to);
+  } else {
+    hash ^= ZOBRIST.pieces[moving_piece][to];
   }
 
   //  Update castling rights
@@ -176,6 +231,14 @@ void Position::make_move(Move m, StateInfo &st) {
   ep_square = NO_SQUARE;
   if (flag == DOUBLE_PUSH)
     ep_square = (us == WHITE) ? from + 8 : from - 8;
+
+  // XOR IN the new volatile state
+  hash ^= ZOBRIST.castling[castling_rights];
+  if (ep_square != NO_SQUARE)
+    hash ^= ZOBRIST.ep[sq_file(ep_square)];
+
+  // Flip side to move
+  hash ^= ZOBRIST.side;
 
   //  Clocks
   halfmove_clock = (pt == PAWN) ? 0 : halfmove_clock + 1;
@@ -238,7 +301,7 @@ void Position::unmake_move(const StateInfo &st) {
 
   //  Reverse promotion (remove promoted piece, restore pawn) ──
   if (is_promotion(m)) {
-    PieceType promo_pt = static_cast<PieceType>((flag & 3) + KNIGHT);
+    PieceType promo_pt = get_promotion_piece(m);
     remove_piece(us, promo_pt, to);
     place_piece(us, PAWN, to);
   }
@@ -266,6 +329,7 @@ void Position::unmake_move(const StateInfo &st) {
   castling_rights = st.castling_rights;
   halfmove_clock = st.halfmove_clock;
   side_to_move = us;
+  hash = st.hash;
 
   if (us == BLACK)
     --fullmove_number;
@@ -293,7 +357,7 @@ void print_board(const Position &pos, Bitboard highlight) {
       char display = '.';
       Color c = pos.color_on(sq);
       if (c != COLOR_NB) {
-        PieceType pt = pos.piece_on(c, sq);
+        PieceType pt = pos.piece_type_on(c, sq);
         display = piece_char(c, pt);
       }
 

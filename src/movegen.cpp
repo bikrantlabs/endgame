@@ -89,12 +89,20 @@ void gen_pawn_moves(const Position &pos, MoveList &ml) {
 
   // --- Single push ---
   Bitboard single = shift_forward(pawns) & empty;
-
   while (single) {
     int to_sq = unset_lsb(single);
     int from_sq = to_sq - push_dir;
-    // promotion check goes here later
-    ml.add(make_move(from_sq, to_sq, QUIET));
+    Bitboard square_bb = sq_bb(to_sq);
+
+    if (promo_rank & square_bb) {
+      // The destination is last rank, add four moves for four promotion
+      ml.add(make_move(from_sq, to_sq, PROMO_N));
+      ml.add(make_move(from_sq, to_sq, PROMO_B));
+      ml.add(make_move(from_sq, to_sq, PROMO_R));
+      ml.add(make_move(from_sq, to_sq, PROMO_Q));
+    } else {
+      ml.add(make_move(from_sq, to_sq, QUIET));
+    }
   }
 
   // --- Double push ---
@@ -111,19 +119,38 @@ void gen_pawn_moves(const Position &pos, MoveList &ml) {
 
   // Captures- If there is any (opponent) piece in diagonals, mark that move as
   // capture.
+
   // -- Right Capture
   single = (us == WHITE ? shift_ne(pawns) : shift_se(pawns)) & enemy_occ;
   while (single) {
     int to_sq = unset_lsb(single);
     int from_sq = to_sq - capture_dir_right;
-    ml.add(make_move(from_sq, to_sq, CAPTURE));
+    Bitboard square_bb = sq_bb(to_sq);
+    if (promo_rank & square_bb) {
+      // The destination is last file, add four moves for four promotion
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_N));
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_B));
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_R));
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_Q));
+    } else {
+      ml.add(make_move(from_sq, to_sq, CAPTURE));
+    }
   }
   // -- Left Capture
   single = (us == WHITE ? shift_nw(pawns) : shift_sw(pawns)) & enemy_occ;
   while (single) {
     int to_sq = unset_lsb(single);
     int from_sq = to_sq - capture_dir_left;
-    ml.add(make_move(from_sq, to_sq, CAPTURE));
+    Bitboard square_bb = sq_bb(to_sq);
+    if (promo_rank & square_bb) {
+      // The destination is last file, add four moves for four promotion
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_N));
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_B));
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_R));
+      ml.add(make_move(from_sq, to_sq, PROMO_CAP_Q));
+    } else {
+      ml.add(make_move(from_sq, to_sq, CAPTURE));
+    }
   }
 
   // Enpassant square is set whenever opponent double push, just check if my
@@ -148,8 +175,6 @@ void gen_pawn_moves(const Position &pos, MoveList &ml) {
       ml.add(make_move(from_sq, pos.ep_square, EP_CAPTURE));
     }
   }
-  // same pattern: shift_ne/nw for white, shift_se/sw for black
-  // just add capture_dir_left / capture_dir_right constants above
 }
 
 void gen_knight_moves(const Position &pos, MoveList &ml) {
@@ -315,8 +340,7 @@ void gen_legal_moves(Position &pos, MoveList &legal) {
     // Check if the side that just moved left their king in check.
     Color us = static_cast<Color>(1 - pos.side_to_move);
     Color them = pos.side_to_move;
-    bool in_check =
-        pos.is_square_attacked(Util::king_square(pos, us), them);
+    bool in_check = pos.is_square_attacked(Util::king_square(pos, us), them);
 
     if (!in_check) {
       legal.add(m);
@@ -333,7 +357,7 @@ bool gen_moves_for_square(Position &pos, int sq, MoveList &ml) {
   if (pos.color_on(sq) != us)
     return false; // no friendly piece there
 
-  PieceType pt = pos.piece_on(us, sq);
+  PieceType pt = pos.piece_type_on(us, sq);
   if (pt == PIECE_TYPE_NB)
     return false;
 

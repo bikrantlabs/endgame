@@ -4,6 +4,7 @@
 #include <string>
 
 using Bitboard = uint64_t;
+using ZobrishKey = uint64_t;
 using Move = uint16_t; // bits 0-5: from | 6-11: to | 12-15: flags
 
 constexpr int NUM_SQUARES = 64;
@@ -200,6 +201,17 @@ inline bool is_capture(Move m) { return (move_flag(m) & CAPTURE) != 0; }
 
 inline bool is_promotion(Move m) { return move_flag(m) >= PROMO_N; }
 
+/**
+PROMO_N=8    (1000) → 8&3=0 +1 = Knight
+PROMO_B=9    (1001) → 9&3=1 +1 = Bishop
+PROMO_R=10   (1010) → 10&3=2+1 = Rook
+PROMO_Q=11   (1011) → 11&3=3+1 = Queen
+ */
+inline PieceType get_promotion_piece(Move m) {
+  int flag = move_flag(m);
+  return static_cast<PieceType>((flag & 3) + KNIGHT);
+}
+
 // Square helpers
 /// Get the file index of Square s
 /// Eg: Square G4(30) -> File 6(which is g file)
@@ -234,6 +246,15 @@ inline std::string sq_name(int s) {
   return name;
 }
 
+inline Piece piece_of(Color color, PieceType type) {
+  // Safety checks
+  assert(color == WHITE || color == BLACK);
+  assert(type >= PAWN && type <= KING);
+
+  int piece = color * 6 + type;
+  return static_cast<Piece>(piece);
+}
+
 /// Convert square to bitboard mask
 inline Bitboard sq_bb(int s) { return 1ULL << s; }
 
@@ -259,8 +280,6 @@ inline int unset_lsb(Bitboard &b) {
   b &= b - 1;
   return sq;
 }
-
-
 
 /// Get total 1s in the board
 inline int popcount(Bitboard b) { return __builtin_popcountll(b); }
