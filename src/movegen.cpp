@@ -1,8 +1,10 @@
 #include "movegen.h"
 #include "magic_bb.h"
+#include "negamax.h"
 #include "types.h"
 #include "utils.h"
 #include <cassert>
+#include <climits>
 
 // The knight attacks and king attacks are precomputed.
 Bitboard KNIGHT_ATTACKS[64];
@@ -348,6 +350,30 @@ void gen_legal_moves(Position &pos, MoveList &legal) {
 
     pos.unmake_move(st);
   }
+}
+
+Move gen_best_move(Position &pos, int depth) {
+  MoveList ml;
+  gen_legal_moves(pos, ml);
+  Move best_move = ml[0];
+
+  int best_score = INT_MIN;
+
+  for (int i = 0; i < ml.count; i++) {
+    StateInfo st;
+    Move m = ml[i];
+
+    pos.make_move(m, st);
+
+    int score = -negamax(pos, depth);
+
+    pos.unmake_move(st);
+    if (score > best_score) {
+      best_score = score;
+      best_move = m;
+    }
+  }
+  return best_move;
 }
 
 /// Generate moves only for the piece on a specific square

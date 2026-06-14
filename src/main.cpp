@@ -1,3 +1,4 @@
+#include "evaluate.h"
 #include "movegen.h"
 #include "perft.h"
 #include "position.h"
@@ -11,14 +12,33 @@ int main() {
   Position pos;
   pos.set_startpos();
   perft_divide(pos, 5);
-  // manually replicate the position
+
+  std::cout << "\nSelect mode:\n";
+  std::cout << "  1. Player vs Player\n";
+  std::cout << "  2. Player vs AI (play as White)\n";
+  std::cout << "> ";
+
+  std::string mode_str;
+  std::getline(std::cin, mode_str);
+  int mode = (mode_str == "2") ? 2 : 1;
 
   while (true) {
     print_board(pos);
-    std::string from;
-    std::string to;
     Color turn = pos.side_to_move;
 
+    bool is_ai_turn = (mode == 2 && turn == BLACK);
+
+    if (is_ai_turn) {
+      std::cout << "Black (AI) is thinking...\n";
+      Move ai_move = gen_best_move(pos, 3);
+      std::cout << "AI plays " << Util::move_to_string(ai_move) << "\n";
+      StateInfo st;
+      pos.make_move(ai_move, st);
+      continue;
+    }
+
+    std::string from;
+    std::string to;
     std::string turn_name = turn == 0 ? "White" : "Black";
     std::cout << "Select piece to move for " << turn_name << " : ";
     std::getline(std::cin, from);
@@ -29,7 +49,6 @@ int main() {
 
       Color c = pos.color_on(from_square);
 
-      // Get all moves for that square
       gen_moves_for_square(pos, from_square, ml);
 
       PieceType pt = pos.piece_type_on(turn, from_square);
@@ -71,6 +90,9 @@ int main() {
       {
         StateInfo st;
         pos.make_move(move, st);
+        int score = evaluate(pos);
+        std::cout << "Score of " << Util::color_name(static_cast<Color>(1 - c))
+                  << " is " << score << "\n";
       }
 
     } else {
