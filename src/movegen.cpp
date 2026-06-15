@@ -357,7 +357,9 @@ Move gen_best_move(Position &pos, int depth) {
   gen_legal_moves(pos, ml);
   Move best_move = ml[0];
 
-  int best_score = INT_MIN;
+  int alpha = INT_MIN + 1; // +1 to avoid overflow when negating
+  int beta = INT_MAX;
+  int best_score = INT_MIN + 1;
 
   for (int i = 0; i < ml.count; i++) {
     StateInfo st;
@@ -365,13 +367,15 @@ Move gen_best_move(Position &pos, int depth) {
 
     pos.make_move(m, st);
 
-    int score = -negamax(pos, depth);
+    int score = -negamax(pos, depth, -beta, -alpha);
 
     pos.unmake_move(st);
     if (score > best_score) {
       best_score = score;
       best_move = m;
     }
+    if (score > alpha)
+      alpha = score;
   }
   return best_move;
 }

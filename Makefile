@@ -9,7 +9,11 @@ install:
 
 run:
 	cmake --build --preset default
-	$(EXE)
+	$(EXE) --uci
+
+run-terminal:
+	cmake --build --preset default
+	$(EXE) 
 
 clean:
 	cmake -E remove_directory build
