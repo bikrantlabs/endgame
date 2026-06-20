@@ -2,7 +2,6 @@
 #include "magic_bb.h"
 #include "negamax.h"
 #include "order_moves.h"
-#include "tt.h"
 #include "types.h"
 #include "uci.h"
 #include "utils.h"

@@ -1,5 +1,4 @@
 #include "negamax.h"
-#include "evaluate.h"
 #include "material.h"
 #include "movegen.h"
 #include "order_moves.h"

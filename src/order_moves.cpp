@@ -1,6 +1,5 @@
 #include "order_moves.h"
 #include "evaluate.h"
-#include "material.h" // wherever piece_value lives
 #include "movegen.h"
 #include "types.h"
 #include <algorithm>
