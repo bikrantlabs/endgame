@@ -57,60 +57,6 @@ git --version
 ```
 
 ---
-
-## Setting Up vcpkg
-
-### Windows
-
-```powershell
-git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-C:\vcpkg\bootstrap-vcpkg.bat
-```
-
-### Linux
-
-```bash
-git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
-~/vcpkg/bootstrap-vcpkg.sh
-```
-
----
-
-## Setting the VCPKG_ROOT Environment Variable
-
-This tells CMake where to find vcpkg. You only do this **once per machine**.
-
-### Windows
-
-Open PowerShell **as Administrator** and run:
-
-```powershell
-[System.Environment]::SetEnvironmentVariable("VCPKG_ROOT", "C:\vcpkg", "Machine")
-```
-
-Then **restart your terminal** and verify:
-
-```powershell
-echo $env:VCPKG_ROOT
-# Should print: C:\vcpkg
-```
-
-### Linux
-
-```bash
-echo 'export VCPKG_ROOT="$HOME/vcpkg"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-Verify:
-
-```bash
-echo $VCPKG_ROOT
-# Should print: /home/yourname/vcpkg
-```
-
----
-
 ## Cloning the Project
 
 ```bash
@@ -151,28 +97,3 @@ sudo apt insall lldb
 > **Note:** The first run takes a few minutes because vcpkg is downloading and compiling dependencies. Every run after that is fast — only changed files get recompiled.
 
 ---
-
-
-
-## Adding a New Package
-
-1. Find the package name at https://vcpkg.io/en/packages
-2. Add it to `vcpkg.json`:
-```json
-{
-  "dependencies": [
-    "existing-package",
-    "new-package-name"
-  ]
-}
-```
-3. Add to `CMakeLists.txt`:
-```cmake
-find_package(new-package CONFIG REQUIRED)
-target_link_libraries(my_app PRIVATE new-package::new-package)
-```
-4. Run configure once to download it:
-```bash
-make install
-```
-
