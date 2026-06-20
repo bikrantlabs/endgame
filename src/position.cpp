@@ -4,6 +4,7 @@
 #include "types.h"
 #include "utils.h"
 #include "zobrist.h"
+#include <algorithm>
 #include <iostream>
 
 void Position::compute_hash() {
@@ -32,6 +33,25 @@ void Position::compute_hash() {
     hash ^= ZOBRIST.ep[sq_file(ep_square)];
 }
 
+GameResult Position::game_result() {
+  if (halfmove_clock >= 100)
+    return DRAW_50_MOVES;
+
+  MoveList ml;
+  gen_legal_moves(*this, ml);
+  if (ml.empty()) {
+    if (is_in_check())
+      return CHECKMATE;
+    return STALEMATE;
+  }
+
+  int count = (int)std::count(game_history.begin(), game_history.end(), hash);
+  if (count >= 3)
+    return DRAW_REPETITION;
+
+  return ONGOING;
+}
+
 void Position::clear() {
   for (int c = 0; c < COLOR_NB; ++c)
     for (int p = 0; p < PIECE_TYPE_NB; ++p)
@@ -39,11 +59,12 @@ void Position::clear() {
   occ[WHITE] = occ[BLACK] = all_occ = 0ULL;
 
   side_to_move = WHITE;
-  castling_rights = 0b1111; // all rights
+  castling_rights = 0b1111;
   ep_square = NO_SQUARE;
   halfmove_clock = 0;
   fullmove_number = 1;
   hash = 0;
+  game_history.clear();
 }
 
 // Place piece of type pt, of color c in square
@@ -80,6 +101,19 @@ PieceType Position::piece_type_on(Color c, int s) const {
       return static_cast<PieceType>(pt);
 
   return PIECE_TYPE_NB;
+}
+
+Piece Position::piece_on(int square) {
+  PieceType pt = this->piece_type_on(WHITE, square);
+
+  if (pt != PIECE_TYPE_NB) {
+    return piece_of(WHITE, pt);
+  }
+  pt = this->piece_type_on(BLACK, square);
+  if (pt != PIECE_TYPE_NB)
+    return piece_of(BLACK, pt);
+
+  return NO_PIECE;
 }
 
 Color Position::color_on(int sq) const {
@@ -120,6 +154,8 @@ void Position::set_startpos() {
     place_piece(BLACK, PAWN, sq_of(f, 6));
 
   compute_hash();
+  game_history.clear();
+  game_history.push_back(hash);
 }
 
 void Position::make_move(Move m, StateInfo &st) {

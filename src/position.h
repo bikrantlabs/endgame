@@ -1,5 +1,6 @@
 #pragma once
 #include "types.h"
+#include <vector>
 // ─────────────────────────────────────────────
 //  StateInfo — snapshot for unmake_move
 // ─────────────────────────────────────────────
@@ -54,6 +55,8 @@ public:
   // Move a piece from one square to another (quiet move only).
   void move_piece(Color c, PieceType pt, int from, int to);
 
+  /// Which piece is on specific square for given position
+  Piece piece_on(int square);
   // Which piece type is on sq for color c? Returns PIECE_TYPE_NB if none.
   PieceType piece_type_on(Color c, int sq) const;
 
@@ -68,6 +71,11 @@ public:
 
   // Is our king checked?
   bool is_in_check() const;
+
+  // History of previous position hashes (for repetition detection)
+  std::vector<ZobrishKey> game_history;
+
+  GameResult game_result();
 
   // Make / Unmake
 

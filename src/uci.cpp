@@ -1,5 +1,4 @@
 #include "uci.h"
-#include "evaluate.h"
 #include "movegen.h"
 #include "negamax.h"
 #include "position.h"
@@ -11,7 +10,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <thread>
 
 std::atomic<bool> search_stopped{false};
 uint64_t search_nodes{0};
@@ -72,8 +70,8 @@ static bool set_fen(Position &pos, const std::string &fen) {
     if (piece < 0)
       return false;
     Color color = (piece < B_PAWN) ? WHITE : BLACK;
-    PieceType pt = static_cast<PieceType>((piece < B_PAWN) ? piece
-                                                           : piece - B_PAWN);
+    PieceType pt =
+        static_cast<PieceType>((piece < B_PAWN) ? piece : piece - B_PAWN);
     pos.place_piece(color, pt, sq);
     sq++;
   }
@@ -114,6 +112,8 @@ static bool set_fen(Position &pos, const std::string &fen) {
   pos.all_occ = pos.occ[WHITE] | pos.occ[BLACK];
 
   pos.compute_hash();
+  pos.game_history.clear();
+  pos.game_history.push_back(pos.hash);
   return true;
 }
 
@@ -159,6 +159,7 @@ static Move parse_uci_move(Position &pos, const std::string &str) {
 
 static void iterative_deepening(Position &pos, SearchLimits &limits) {
   search_stopped = false;
+  search_nodes = 0;
 
   auto start = std::chrono::steady_clock::now();
   Move best_move{};
@@ -186,7 +187,7 @@ static void iterative_deepening(Position &pos, SearchLimits &limits) {
       Move m = ml[i];
       pos.make_move(m, st);
 
-      int score = -negamax(pos, depth - 1, -beta, -alpha);
+      int score = -negamax(pos, depth - 1, -beta, -alpha, 0);
 
       pos.unmake_move(st);
 
@@ -309,9 +310,8 @@ void uci_loop() {
         std::string fen_part =
             (moves_pos == std::string::npos) ? rest : rest.substr(0, moves_pos);
         set_fen(pos, fen_part);
-        rest = (moves_pos == std::string::npos)
-                   ? ""
-                   : rest.substr(moves_pos + 7);
+        rest =
+            (moves_pos == std::string::npos) ? "" : rest.substr(moves_pos + 7);
       }
 
       // Apply moves
@@ -331,6 +331,7 @@ void uci_loop() {
     } else if (line.rfind("go", 0) == 0) {
       SearchLimits limits = parse_go(line);
       iterative_deepening(pos, limits);
+
     } else if (line == "stop") {
       search_stopped = true;
     } else if (line == "quit") {

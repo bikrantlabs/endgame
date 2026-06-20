@@ -255,6 +255,10 @@ inline Piece piece_of(Color color, PieceType type) {
   return static_cast<Piece>(piece);
 }
 
+inline PieceType piece_type_of(Piece p) {
+  return static_cast<PieceType>((int)p % PIECE_TYPE_NB);
+}
+
 /// Convert square to bitboard mask
 inline Bitboard sq_bb(int s) { return 1ULL << s; }
 
@@ -293,6 +297,14 @@ inline Bitboard shift_ne(Bitboard b) { return (b & NOT_FILE_H) << 9; }
 inline Bitboard shift_nw(Bitboard b) { return (b & NOT_FILE_A) << 7; }
 inline Bitboard shift_se(Bitboard b) { return (b & NOT_FILE_H) >> 7; }
 inline Bitboard shift_sw(Bitboard b) { return (b & NOT_FILE_A) >> 9; }
+
+enum GameResult : uint8_t {
+  ONGOING,
+  CHECKMATE,
+  STALEMATE,
+  DRAW_50_MOVES,
+  DRAW_REPETITION
+};
 
 struct MoveList {
   Move moves[256];

@@ -40,7 +40,11 @@ bool gen_moves_for_square(Position &pos, int sq, MoveList &ml);
 // Generate only legal moves (filters out moves that leave king in check)
 void gen_legal_moves(Position &pos, MoveList &ml);
 
+/// Generate best moves using negamax + alpha-beta pruning
 Move gen_best_move(Position &pos, int depth);
+
+/// Only generate capture moves
+void gen_capture_moves(Position &pos, MoveList &captures);
 
 // ─────────────────────────────────────────────
 //  Attack tables (precomputed at startup)

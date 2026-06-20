@@ -52,14 +52,6 @@ std::string move_to_string(Move m) {
     }
   }
 
-  // optional: make castling readable
-  if (flag == KING_CASTLE) {
-    return "O-O";
-  }
-  if (flag == QUEEN_CASTLE) {
-    return "O-O-O";
-  }
-
   return s;
 }
 const char *color_name(Color c) { return c == 0 ? "WHITE" : "BLACK"; }

@@ -1,8 +1,6 @@
 #pragma once
-#include "position.h"
 #include "types.h"
 #include <atomic>
-#include <climits>
 
 extern std::atomic<bool> search_stopped;
 extern uint64_t search_nodes;

@@ -13,7 +13,7 @@ run:
 
 run-terminal:
 	cmake --build --preset default
-	$(EXE) 
+	$(EXE) --terminal
 
 clean:
 	cmake -E remove_directory build

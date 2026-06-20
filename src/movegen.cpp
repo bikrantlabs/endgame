@@ -1,7 +1,10 @@
 #include "movegen.h"
 #include "magic_bb.h"
 #include "negamax.h"
+#include "order_moves.h"
+#include "tt.h"
 #include "types.h"
+#include "uci.h"
 #include "utils.h"
 #include <cassert>
 #include <climits>
@@ -339,6 +342,12 @@ void gen_legal_moves(Position &pos, MoveList &legal) {
     pos.make_move(m, st);
 
     // After make_move, side_to_move is the opponent.
+    // Filter out moves that capture the king (illegal in chess).
+    if (pos.pieces[pos.side_to_move][KING] == 0) {
+      pos.unmake_move(st);
+      continue;
+    }
+
     // Check if the side that just moved left their king in check.
     Color us = static_cast<Color>(1 - pos.side_to_move);
     Color them = pos.side_to_move;
@@ -353,31 +362,37 @@ void gen_legal_moves(Position &pos, MoveList &legal) {
 }
 
 Move gen_best_move(Position &pos, int depth) {
+  clear_search_tables();
+
   MoveList ml;
   gen_legal_moves(pos, ml);
+  if (ml.count == 0)
+    return Move{};
   Move best_move = ml[0];
 
   int alpha = INT_MIN + 1; // +1 to avoid overflow when negating
   int beta = INT_MAX;
   int best_score = INT_MIN + 1;
 
-  for (int i = 0; i < ml.count; i++) {
-    StateInfo st;
-    Move m = ml[i];
+  for (int d = 1; d <= depth; d++) {
+    Move root_best = -1;
+    int score = negamax(pos, d, alpha, beta, 0, &root_best);
 
-    pos.make_move(m, st);
-
-    int score = -negamax(pos, depth, -beta, -alpha);
-
-    pos.unmake_move(st);
-    if (score > best_score) {
-      best_score = score;
-      best_move = m;
-    }
-    if (score > alpha)
-      alpha = score;
+    if (search_stopped)
+      break;
+    if (root_best != 0)
+      best_move = root_best;
   }
   return best_move;
+}
+
+void gen_capture_moves(Position &pos, MoveList &captures) {
+  MoveList all;
+  gen_legal_moves(pos, all);
+  for (int i = 0; i < all.count; i++) {
+    if (is_capture(all[i]))
+      captures.add(all[i]);
+  }
 }
 
 /// Generate moves only for the piece on a specific square

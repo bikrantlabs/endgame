@@ -3,9 +3,26 @@
 #include "perft.h"
 #include "position.h"
 #include "types.h"
+#include "uci.h"
 #include "utils.h"
 #include <iostream>
 #include <string>
+
+static const char *game_result_str(GameResult r) {
+  switch (r) {
+  case ONGOING:
+    return "";
+  case CHECKMATE:
+    return "Checkmate!";
+  case STALEMATE:
+    return "Stalemate - draw!";
+  case DRAW_50_MOVES:
+    return "50-move rule - draw!";
+  case DRAW_REPETITION:
+    return "Threefold repetition - draw!";
+  }
+  return "";
+}
 
 int terminal_game() {
   Position pos;
@@ -22,6 +39,17 @@ int terminal_game() {
   int mode = (mode_str == "2") ? 2 : 1;
 
   while (true) {
+    GameResult gr = pos.game_result();
+    if (gr != ONGOING) {
+      print_board(pos);
+      std::cout << game_result_str(gr) << "\n";
+      if (gr == CHECKMATE) {
+        Color winner = static_cast<Color>(1 - pos.side_to_move);
+        std::cout << Util::color_name(winner) << " wins!\n";
+      }
+      break;
+    }
+
     print_board(pos);
     Color turn = pos.side_to_move;
 
@@ -29,10 +57,15 @@ int terminal_game() {
 
     if (is_ai_turn) {
       std::cout << "Black (AI) is thinking...\n";
-      Move ai_move = gen_best_move(pos, 3);
+      search_nodes = 0;
+      Move ai_move = gen_best_move(pos, 5);
       std::cout << "AI plays " << Util::move_to_string(ai_move) << "\n";
       StateInfo st;
       pos.make_move(ai_move, st);
+      std::cout << "AI Made Move: " << ai_move;
+      std::cout << "King sq: " << Util::king_square(pos, BLACK) << "\n";
+      std::cout << "Rook bb: " << pos.pieces[BLACK][ROOK] << "\n";
+      pos.game_history.push_back(pos.hash);
       continue;
     }
 
@@ -45,6 +78,10 @@ int terminal_game() {
     MoveList ml;
     if (from.size() == 2) {
       int from_square = parse_square(from);
+      if (from_square == NO_SQUARE) {
+        std::cout << "Please select a valid square: eg. e2\n";
+        continue;
+      }
 
       Color c = pos.color_on(from_square);
 
@@ -58,6 +95,10 @@ int terminal_game() {
 
       getline(std::cin, to);
       int to_square = parse_square(to);
+      if (to_square == NO_SQUARE) {
+        std::cout << "Please select a valid square\n";
+        continue;
+      }
 
       Move move = Util::find_move(ml, from_square, to_square);
 
@@ -89,6 +130,7 @@ int terminal_game() {
       {
         StateInfo st;
         pos.make_move(move, st);
+        pos.game_history.push_back(pos.hash);
         int score = evaluate(pos);
         std::cout << "Score of " << Util::color_name(static_cast<Color>(1 - c))
                   << " is " << score << "\n";
@@ -98,4 +140,6 @@ int terminal_game() {
       std::cout << "Please select a valid square: eg. e2\n";
     }
   }
+
+  return 0;
 }
