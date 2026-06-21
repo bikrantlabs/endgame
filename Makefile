@@ -5,8 +5,11 @@ else
 endif
 
 build-windows:
-	cmake -B build-win -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc  -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++
-	cmake --build build-win
+	cmake -B build-release -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release
+	cmake --build build-release
+
+build-linux:
+	cmake --build --preset default
 
 install:
 	cmake --preset default -DCMAKE_BUILD_TYPE=Debug
