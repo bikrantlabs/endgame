@@ -3,12 +3,16 @@
 #include "negamax.h"
 #include "utils.h"
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <sstream>
 
 std::chrono::steady_clock::time_point search_start_time;
 int search_time_limit_ms = 0;
+
+std::atomic<bool> search_stopped{false};
+uint64_t search_nodes{0};
 
 int SearchLimits::time_for_move(Color side, int elapsed) const {
   if (movetime > 0)
