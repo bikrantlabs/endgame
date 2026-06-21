@@ -81,6 +81,9 @@ public:
 
   void make_move(Move m, StateInfo &st);
   void unmake_move(const StateInfo &st);
+
+  // Repair any pieces-vs-occ inconsistency (safe to call after any child search)
+  void repair_consistency();
 };
 
 // Print the board. If highlight != 0, marks those squares with '*'.

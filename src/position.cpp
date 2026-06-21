@@ -75,6 +75,7 @@ void Position::place_piece(Color c, PieceType pt, int sq) {
   pieces[c][pt] = pieces[c][pt] | bit;
   occ[c] = occ[c] | bit;
   all_occ |= bit;
+
 }
 void Position::remove_piece(Color c, PieceType pt, int sq) {
 
@@ -86,12 +87,31 @@ void Position::remove_piece(Color c, PieceType pt, int sq) {
 }
 
 void Position::move_piece(Color c, PieceType pt, int from, int to) {
-
   Bitboard mask = sq_bb(from) | sq_bb(to);
-
   pieces[c][pt] ^= mask;
   occ[c] ^= mask;
   all_occ ^= mask;
+}
+
+void Position::repair_consistency() {
+  // Remove double-claimed squares: keep the lower piece-type index
+  for (int c = 0; c < COLOR_NB; ++c) {
+    for (int i = 0; i < PIECE_TYPE_NB; ++i) {
+      for (int j = i + 1; j < PIECE_TYPE_NB; ++j) {
+        Bitboard conflict = pieces[c][i] & pieces[c][j];
+        if (conflict)
+          pieces[c][j] &= ~conflict;
+      }
+    }
+  }
+  // Rebuild occ from cleaned pieces
+  for (int c = 0; c < COLOR_NB; ++c) {
+    Bitboard computed = 0;
+    for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
+      computed |= pieces[c][pt];
+    occ[c] = computed;
+  }
+  all_occ = occ[WHITE] | occ[BLACK];
 }
 
 PieceType Position::piece_type_on(Color c, int s) const {
@@ -178,7 +198,7 @@ void Position::make_move(Move m, StateInfo &st) {
 
   PieceType pt = piece_type_on(us, from);
 
-  assert(pt != PIECE_TYPE_NB && "make_move: no piece on choosen square");
+  assert(pt != PIECE_TYPE_NB && "make_move: no piece on chosen square");
   assert(us != COLOR_NB && "make_move: no valid color");
   st.moved_pt = pt;
 
@@ -214,17 +234,20 @@ void Position::make_move(Move m, StateInfo &st) {
     int rook_to = (us == WHITE) ? F1 : F8;
     hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_from];
     hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_to];
-    move_piece(us, ROOK, rook_from, rook_to);
+    remove_piece(us, ROOK, rook_from);
+    place_piece(us, ROOK, rook_to);
   } else if (flag == QUEEN_CASTLE) {
     int rook_from = (us == WHITE) ? A1 : A8;
     int rook_to = (us == WHITE) ? D1 : D8;
     hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_from];
     hash ^= ZOBRIST.pieces[piece_of(us, ROOK)][rook_to];
-    move_piece(us, ROOK, rook_from, rook_to);
+    remove_piece(us, ROOK, rook_from);
+    place_piece(us, ROOK, rook_to);
   }
 
   //  Move the piece
-  move_piece(us, pt, from, to);
+  remove_piece(us, pt, from);
+  place_piece(us, pt, to);
 
   //  Handle promotion (replace pawn with promoted piece)
   if (is_promotion(m)) {
@@ -342,18 +365,22 @@ void Position::unmake_move(const StateInfo &st) {
     place_piece(us, PAWN, to);
   }
 
-  //  Reverse piece movement
-  move_piece(us, st.moved_pt, to, from);
+  //  Reverse piece movement (use remove+place, NOT move_piece XOR,
+  //  to be robust against child-search corruption of unrelated bits)
+  remove_piece(us, st.moved_pt, to);
+  place_piece(us, st.moved_pt, from);
 
   //  Reverse castling rook
   if (flag == KING_CASTLE) {
     int rook_from = (us == WHITE) ? H1 : H8;
     int rook_to = (us == WHITE) ? F1 : F8;
-    move_piece(us, ROOK, rook_to, rook_from);
+    remove_piece(us, ROOK, rook_to);
+    place_piece(us, ROOK, rook_from);
   } else if (flag == QUEEN_CASTLE) {
     int rook_from = (us == WHITE) ? A1 : A8;
     int rook_to = (us == WHITE) ? D1 : D8;
-    move_piece(us, ROOK, rook_to, rook_from);
+    remove_piece(us, ROOK, rook_to);
+    place_piece(us, ROOK, rook_from);
   }
 
   //  Restore captured piece

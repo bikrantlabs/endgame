@@ -1,12 +1,12 @@
 #include "movegen.h"
 #include "magic_bb.h"
+#include "material.h"
 #include "negamax.h"
 #include "order_moves.h"
 #include "search.h"
 #include "types.h"
 #include "utils.h"
 #include <cassert>
-#include <climits>
 
 // The knight attacks and king attacks are precomputed.
 Bitboard KNIGHT_ATTACKS[64];
@@ -369,9 +369,9 @@ Move gen_best_move(Position &pos, int depth) {
     return Move{};
   Move best_move = ml[0];
 
-  int alpha = INT_MIN + 1; // +1 to avoid overflow when negating
-  int beta = INT_MAX;
-  int best_score = INT_MIN + 1;
+  int alpha = -MATE_SCORE;
+  int beta = MATE_SCORE;
+  int best_score = -MATE_SCORE;
 
   for (int d = 1; d <= depth; d++) {
     Move root_best = -1;
@@ -489,7 +489,7 @@ void gen_capture_moves(Position &pos, MoveList &captures) {
     StateInfo st;
     pos.make_move(m, st);
     Color us = static_cast<Color>(1 - pos.side_to_move);
-    if (pos.pieces[us][KING] == 0) {
+    if (pos.pieces[pos.side_to_move][KING] == 0) {
       pos.unmake_move(st);
       continue;
     }
