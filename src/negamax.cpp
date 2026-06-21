@@ -2,6 +2,7 @@
 #include "material.h"
 #include "movegen.h"
 #include "order_moves.h"
+#include "search.h"
 #include "tt.h"
 #include "types.h"
 #include "uci.h"
@@ -11,6 +12,15 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
             Move *out_best_move) {
 
   search_nodes++;
+
+  if ((search_nodes & 2047) == 0) {
+    if (time_is_up())
+      search_stopped = true;
+  }
+
+  if (search_stopped)
+    return 0;
+
   ZobrishKey key = pos.hash;
   TTEntry *tte = tt.probe(key);
   Move tt_move = -1;
@@ -25,9 +35,6 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
         return beta;
     }
   }
-
-  if (search_stopped)
-    return 0;
 
   if (depth == 0)
     return quiescence(pos, alpha, beta);

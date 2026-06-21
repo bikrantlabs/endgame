@@ -2,8 +2,8 @@
 #include "movegen.h"
 #include "perft.h"
 #include "position.h"
+#include "search.h"
 #include "types.h"
-#include "uci.h"
 #include "utils.h"
 #include <iostream>
 #include <string>

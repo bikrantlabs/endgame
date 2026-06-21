@@ -11,10 +11,9 @@ build-windows:
 build-linux:
 	cmake --build --preset default
 
-install:
-	cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 
 run:
+	cmake --preset default
 	cmake --build --preset default
 	$(EXE) --uci
 

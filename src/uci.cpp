@@ -2,15 +2,16 @@
 #include "movegen.h"
 #include "negamax.h"
 #include "position.h"
+#include "search.h"
 #include "types.h"
 #include "utils.h"
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <search.h>
 #include <sstream>
 #include <string>
-
 std::atomic<bool> search_stopped{false};
 uint64_t search_nodes{0};
 
@@ -153,125 +154,6 @@ static Move parse_uci_move(Position &pos, const std::string &str) {
     }
   }
   return Move{};
-}
-
-// ── Search ──────────────────────────────────────────────────────────────────
-
-static void iterative_deepening(Position &pos, SearchLimits &limits) {
-  search_stopped = false;
-  search_nodes = 0;
-
-  auto start = std::chrono::steady_clock::now();
-  Move best_move{};
-  Move current_root{};
-
-  for (int depth = 1; depth <= limits.depth; depth++) {
-    if (search_stopped)
-      break;
-
-    MoveList ml;
-    gen_legal_moves(pos, ml);
-    if (ml.empty())
-      break;
-
-    int alpha = INT_MIN + 1;
-    int beta = INT_MAX;
-    int best_score = INT_MIN + 1;
-
-    // Search at root — pick best move
-    for (int i = 0; i < ml.count; i++) {
-      if (search_stopped)
-        break;
-
-      StateInfo st;
-      Move m = ml[i];
-      pos.make_move(m, st);
-
-      int score = -negamax(pos, depth - 1, -beta, -alpha, 0);
-
-      pos.unmake_move(st);
-
-      if (score > best_score) {
-        best_score = score;
-        best_move = m;
-      }
-      if (score > alpha)
-        alpha = score;
-    }
-
-    // Time check
-    auto now = std::chrono::steady_clock::now();
-    int elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - start)
-            .count();
-
-    // UCI info
-    std::cout << "info depth " << depth << " score cp " << best_score
-              << " nodes " << search_nodes << " time " << elapsed << " pv "
-              << Util::move_to_string(best_move) << "\n";
-
-    // Stop if allocated time exceeded
-    int time_alloc = limits.time_for_move(pos.side_to_move, elapsed);
-    if (elapsed >= time_alloc && depth > 1)
-      break;
-  }
-
-  auto end = std::chrono::steady_clock::now();
-  int total_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-          .count();
-  std::cout << "bestmove " << Util::move_to_string(best_move) << "\n";
-}
-
-// ── Search limits ───────────────────────────────────────────────────────────
-
-static SearchLimits parse_go(const std::string &line) {
-  SearchLimits lim;
-  std::istringstream ss(line);
-  std::string token;
-  ss >> token; // skip "go"
-
-  while (ss >> token) {
-    if (token == "depth")
-      ss >> lim.depth;
-    else if (token == "movetime")
-      ss >> lim.movetime;
-    else if (token == "wtime")
-      ss >> lim.wtime;
-    else if (token == "btime")
-      ss >> lim.btime;
-    else if (token == "winc")
-      ss >> lim.winc;
-    else if (token == "binc")
-      ss >> lim.binc;
-    else if (token == "movestogo")
-      ss >> lim.movestogo;
-    else if (token == "infinite")
-      lim.infinite = true;
-  }
-  return lim;
-}
-
-int SearchLimits::time_for_move(Color side, int elapsed) const {
-  if (movetime > 0)
-    return movetime;
-  if (infinite)
-    return INT_MAX;
-
-  int time_remaining = (side == WHITE) ? wtime : btime;
-  int inc = (side == WHITE) ? winc : binc;
-
-  if (time_remaining == 0)
-    return INT_MAX;
-
-  // Use 1/40 of remaining time + increment
-  int alloc = time_remaining / 40 + inc;
-  if (alloc < 100)
-    alloc = 100; // minimum 100ms
-  if (alloc > time_remaining / 2)
-    alloc = time_remaining / 2; // never use more than half of remaining
-
-  return alloc;
 }
 
 // ── UCI loop ────────────────────────────────────────────────────────────────

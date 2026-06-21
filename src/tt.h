@@ -41,4 +41,4 @@ struct TranspositionTable {
   }
 };
 
-inline TranspositionTable tt(64);
+inline TranspositionTable tt(100);

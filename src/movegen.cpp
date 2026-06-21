@@ -2,8 +2,8 @@
 #include "magic_bb.h"
 #include "negamax.h"
 #include "order_moves.h"
+#include "search.h"
 #include "types.h"
-#include "uci.h"
 #include "utils.h"
 #include <cassert>
 #include <climits>
