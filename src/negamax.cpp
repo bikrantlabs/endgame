@@ -6,6 +6,7 @@
 #include "tt.h"
 #include "types.h"
 #include "uci.h"
+#include "utils.h"
 #include <climits>
 
 int negamax(Position &pos, int depth, int alpha, int beta, int ply,
@@ -40,7 +41,7 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
     return quiescence(pos, alpha, beta);
 
   MoveList move_list;
-  gen_legal_moves(pos, move_list);
+  gen_all_moves(pos, move_list);
 
   if (move_list.empty()) {
     if (pos.is_in_check())
@@ -62,6 +63,13 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
     Move m = move_list[i];
     pos.make_move(m, st);
 
+    // Skip illegal moves
+    Color us = static_cast<Color>(1 - pos.side_to_move);
+    if (pos.pieces[pos.side_to_move][KING] == 0 ||
+        pos.is_square_attacked(Util::king_square(pos, us), pos.side_to_move)) {
+      pos.unmake_move(st);
+      continue;
+    }
     int score = -negamax(pos, depth - 1, -beta, -alpha, ply + 1);
 
     pos.unmake_move(st);

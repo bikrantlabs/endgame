@@ -385,12 +385,117 @@ Move gen_best_move(Position &pos, int depth) {
   return best_move;
 }
 
+static void gen_pawn_captures(const Position &pos, MoveList &ml) {
+  Color us = pos.side_to_move;
+  Bitboard pawns = pos.pieces[us][PAWN];
+  Bitboard enemy = pos.occ[1 - us];
+
+  const Bitboard promo_rank = (us == WHITE) ? RANK_8 : RANK_1;
+  const int cap_right = (us == WHITE) ? 9 : -7;
+  const int cap_left = (us == WHITE) ? 7 : -9;
+
+  auto add_pawn_capture = [&](int from, int to, Bitboard dest_bb) {
+    if (dest_bb & promo_rank) {
+      ml.add(make_move(from, to, PROMO_CAP_N));
+      ml.add(make_move(from, to, PROMO_CAP_B));
+      ml.add(make_move(from, to, PROMO_CAP_R));
+      ml.add(make_move(from, to, PROMO_CAP_Q));
+    } else {
+      ml.add(make_move(from, to, CAPTURE));
+    }
+  };
+
+  // Diagonal captures
+  Bitboard right = (us == WHITE) ? shift_ne(pawns) : shift_se(pawns);
+  right &= enemy;
+  while (right) {
+    int to = unset_lsb(right);
+    add_pawn_capture(to - cap_right, to, sq_bb(to));
+  }
+
+  Bitboard left = (us == WHITE) ? shift_nw(pawns) : shift_sw(pawns);
+  left &= enemy;
+  while (left) {
+    int to = unset_lsb(left);
+    add_pawn_capture(to - cap_left, to, sq_bb(to));
+  }
+
+  // EP capture
+  if (pos.ep_square != NO_SQUARE) {
+    Bitboard ep = sq_bb(pos.ep_square);
+    if ((us == WHITE) ? (shift_ne(pawns) & ep) : (shift_se(pawns) & ep))
+      ml.add(make_move(pos.ep_square - cap_right, pos.ep_square, EP_CAPTURE));
+    if ((us == WHITE) ? (shift_nw(pawns) & ep) : (shift_sw(pawns) & ep))
+      ml.add(make_move(pos.ep_square - cap_left, pos.ep_square, EP_CAPTURE));
+  }
+}
+
+static void gen_captures_only(const Position &pos, MoveList &ml) {
+  Color us = pos.side_to_move;
+  Bitboard enemy = pos.occ[1 - us];
+
+  gen_pawn_captures(pos, ml);
+
+  // Knight captures
+  Bitboard knights = pos.pieces[us][KNIGHT];
+  while (knights) {
+    int from = unset_lsb(knights);
+    Bitboard targets = KNIGHT_ATTACKS[from] & enemy;
+    while (targets)
+      ml.add(make_move(from, unset_lsb(targets), CAPTURE));
+  }
+
+  // Bishop captures
+  Bitboard bishops = pos.pieces[us][BISHOP];
+  while (bishops) {
+    int from = unset_lsb(bishops);
+    Bitboard targets = bishop_attacks(from, pos.all_occ) & enemy;
+    while (targets)
+      ml.add(make_move(from, unset_lsb(targets), CAPTURE));
+  }
+
+  // Rook captures
+  Bitboard rooks = pos.pieces[us][ROOK];
+  while (rooks) {
+    int from = unset_lsb(rooks);
+    Bitboard targets = rook_attacks(from, pos.all_occ) & enemy;
+    while (targets)
+      ml.add(make_move(from, unset_lsb(targets), CAPTURE));
+  }
+
+  // Queen captures
+  Bitboard queens = pos.pieces[us][QUEEN];
+  while (queens) {
+    int from = unset_lsb(queens);
+    Bitboard targets = queen_attacks(from, pos.all_occ) & enemy;
+    while (targets)
+      ml.add(make_move(from, unset_lsb(targets), CAPTURE));
+  }
+
+  // King captures (no castling)
+  int king_sq = Util::king_square(pos, us);
+  Bitboard king_targets = KING_ATTACKS[king_sq] & enemy;
+  while (king_targets)
+    ml.add(make_move(king_sq, unset_lsb(king_targets), CAPTURE));
+}
+
 void gen_capture_moves(Position &pos, MoveList &captures) {
-  MoveList all;
-  gen_legal_moves(pos, all);
-  for (int i = 0; i < all.count; i++) {
-    if (is_capture(all[i]))
-      captures.add(all[i]);
+  MoveList pseudo;
+  gen_captures_only(pos, pseudo);
+
+  captures.clear();
+  for (int i = 0; i < pseudo.count; i++) {
+    Move m = pseudo[i];
+    StateInfo st;
+    pos.make_move(m, st);
+    Color us = static_cast<Color>(1 - pos.side_to_move);
+    if (pos.pieces[us][KING] == 0) {
+      pos.unmake_move(st);
+      continue;
+    }
+    if (!pos.is_square_attacked(Util::king_square(pos, us), pos.side_to_move))
+      captures.add(m);
+    pos.unmake_move(st);
   }
 }
 
