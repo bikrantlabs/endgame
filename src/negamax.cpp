@@ -1,17 +1,13 @@
 #include "negamax.h"
 #include "material.h"
-#include "magic_bb.h"
 #include "movegen.h"
 #include "order_moves.h"
 #include "search.h"
 #include "tt.h"
 #include "types.h"
-#include "uci.h"
 #include "utils.h"
 #include "zobrist.h"
 #include <algorithm>
-#include <climits>
-#include <iostream>
 
 // Convert score to/from TT format with distance-to-mate adjustment
 static int value_to_tt(int score, int ply) {
@@ -46,22 +42,27 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
     tt_move = tte->best_move;
     if (tte->depth >= depth && ply > 0) {
       int tt_score = value_from_tt(tte->score, ply);
-      if (tte->flag == TT_EXACT) return tt_score;
-      if (tte->flag == TT_ALPHA && tt_score <= alpha) return alpha;
-      if (tte->flag == TT_BETA && tt_score >= beta) return beta;
+      if (tte->flag == TT_EXACT)
+        return tt_score;
+      if (tte->flag == TT_ALPHA && tt_score <= alpha)
+        return alpha;
+      if (tte->flag == TT_BETA && tt_score >= beta)
+        return beta;
     }
   }
 
   // Null Move Pruning
-  if (depth >= 3 && !pos.is_in_check() &&
-      pos.pieces[WHITE][QUEEN] != 0 && pos.pieces[BLACK][QUEEN] != 0) {
+  if (depth >= 3 && !pos.is_in_check() && pos.pieces[WHITE][QUEEN] != 0 &&
+      pos.pieces[BLACK][QUEEN] != 0) {
     ZobrishKey saved_hash = pos.hash;
     pos.hash ^= ZOBRIST.side;
     pos.side_to_move = static_cast<Color>(1 - pos.side_to_move);
 
     // Save full board state: the recursive call will modify pieces[][]
     Bitboard saved_pieces[COLOR_NB][PIECE_TYPE_NB];
-    std::copy(&pos.pieces[0][0], &pos.pieces[0][0] + static_cast<int>(COLOR_NB) * static_cast<int>(PIECE_TYPE_NB),
+    std::copy(&pos.pieces[0][0],
+              &pos.pieces[0][0] +
+                  static_cast<int>(COLOR_NB) * static_cast<int>(PIECE_TYPE_NB),
               &saved_pieces[0][0]);
     Bitboard saved_occ[COLOR_NB] = {pos.occ[WHITE], pos.occ[BLACK]};
     Bitboard saved_all_occ = pos.all_occ;
@@ -71,7 +72,9 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
     int score = -negamax(pos, nd, -beta, -beta + 1, ply);
 
     // Restore full board state
-    std::copy(&saved_pieces[0][0], &saved_pieces[0][0] + static_cast<int>(COLOR_NB) * static_cast<int>(PIECE_TYPE_NB),
+    std::copy(&saved_pieces[0][0],
+              &saved_pieces[0][0] +
+                  static_cast<int>(COLOR_NB) * static_cast<int>(PIECE_TYPE_NB),
               &pos.pieces[0][0]);
     pos.occ[WHITE] = saved_occ[WHITE];
     pos.occ[BLACK] = saved_occ[BLACK];
@@ -112,7 +115,8 @@ int negamax(Position &pos, int depth, int alpha, int beta, int ply,
     bool king_captured = (pos.pieces[pos.side_to_move][KING] == 0);
     bool king_in_check = false;
     if (!king_captured)
-        king_in_check = pos.is_square_attacked(Util::king_square(pos, us), pos.side_to_move);
+      king_in_check =
+          pos.is_square_attacked(Util::king_square(pos, us), pos.side_to_move);
 
     if (king_captured || king_in_check) {
       pos.unmake_move(st);
