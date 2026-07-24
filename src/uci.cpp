@@ -1,10 +1,12 @@
 #include "uci.h"
+#include "book.h"
 #include "move_parser.h"
 #include "order_moves.h"
 #include "position.h"
 #include "search.h"
 #include "tt.h"
 #include "types.h"
+#include "utils.h"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -20,6 +22,7 @@ static void print_options() {
   std::cout << "option name UCI_Chess960 type check default false\n";
   std::cout << "option name Hash type spin default 100 min 1 max 4096\n";
   std::cout << "option name Clear Hash type button\n";
+  std::cout << "option name Book File type string default \n";
 }
 
 static void handle_setoption(const std::string &line) {
@@ -54,6 +57,9 @@ static void handle_setoption(const std::string &line) {
     // TT is fixed at 100 MB for now — resizing would need re-init
   } else if (name == "Clear Hash") {
     tt.table.assign(tt.size, TTEntry{});
+  } else if (name == "Book File") {
+    uci_options.book_file = value;
+    book_open(value);
   }
 }
 
@@ -88,6 +94,13 @@ static void handle_position(const std::string &line, Position &pos) {
 }
 
 static void handle_go(const std::string &line, Position &pos) {
+  // Probe opening book first
+  Move book_move = book_probe(pos);
+  if (book_move != Move{}) {
+    std::cout << "bestmove " << Util::move_to_string(book_move) << "\n";
+    return;
+  }
+
   SearchLimits limits = parse_go(line);
   iterative_deepening(pos, limits);
 }

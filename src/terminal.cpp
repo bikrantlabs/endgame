@@ -1,3 +1,4 @@
+#include "book.h"
 #include "evaluate.h"
 #include "movegen.h"
 #include "perft.h"
@@ -57,9 +58,19 @@ int terminal_game() {
 
     if (is_ai_turn) {
       std::cout << "Black (AI) is thinking...\n";
-      search_nodes = 0;
-      Move ai_move = gen_best_move(pos, 5);
-      std::cout << "AI plays " << Util::move_to_string(ai_move) << "\n";
+      Move ai_move;
+
+      // Probe opening book first
+      Move book_move = book_probe(pos);
+      if (book_move != Move{}) {
+        ai_move = book_move;
+        std::cout << "AI plays (book) " << Util::move_to_string(ai_move) << "\n";
+      } else {
+        search_nodes = 0;
+        ai_move = gen_best_move(pos, 5);
+        std::cout << "AI plays " << Util::move_to_string(ai_move) << "\n";
+      }
+
       StateInfo st;
       pos.make_move(ai_move, st);
       std::cout << "AI Made Move: " << ai_move;
