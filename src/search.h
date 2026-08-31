@@ -12,12 +12,13 @@ struct SearchLimits {
   int movetime = 0;
   int wtime = 0, btime = 0, winc = 0, binc = 0;
   int movestogo = 0;
+  int multipv = 1;
   bool infinite = false;
   int time_for_move(Color side, int elapsed) const;
 };
 
 SearchLimits parse_go(const std::string &line);
-void iterative_deepening(Position &pos, SearchLimits &limits);
+void iterative_deepening(Position &pos, SearchLimits &limits, Move book_move = 0);
 
 // search.cpp / search.h additions
 extern std::chrono::steady_clock::time_point search_start_time;

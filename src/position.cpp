@@ -7,6 +7,27 @@
 #include <algorithm>
 #include <iostream>
 
+static Move dbg_path[256];
+static int dbg_depth = 0;
+void dbg_path_push(Move m) {
+  if (dbg_depth < 256)
+    dbg_path[dbg_depth++] = m;
+}
+void dbg_path_pop() {
+  if (dbg_depth > 0)
+    dbg_depth--;
+}
+void dbg_path_reset() { dbg_depth = 0; }
+void dbg_path_dump() {
+  std::cerr << "dbg_depth=" << dbg_depth << " tail=[";
+  int start = 0;
+  if (dbg_depth > 14)
+    start = dbg_depth - 14;
+  for (int i = start; i < dbg_depth; i++)
+    std::cerr << Util::move_to_string(dbg_path[i]) << " ";
+  std::cerr << "]\n";
+}
+
 void Position::compute_hash() {
   hash = 0;
 
@@ -179,6 +200,7 @@ void Position::set_startpos() {
 }
 
 void Position::make_move(Move m, StateInfo &st) {
+  dbg_path_push(m);
   //  Save state
   st.move = m;
   st.moved_pt = PIECE_TYPE_NB;
@@ -221,6 +243,12 @@ void Position::make_move(Move m, StateInfo &st) {
       remove_piece(them, PAWN, st.captured_sq);
     } else {
       st.captured = piece_type_on(them, to);
+      if (st.captured == PIECE_TYPE_NB) {
+        std::cerr << "[BADCAP] flag=" << flag << " from=" << from << " to=" << to
+                  << " side=" << us << "\n";
+        print_board(*this, 0);
+        std::exit(1);
+      }
       st.captured_sq = to;
       // XOR out the captured piece from the destination square
       hash ^= ZOBRIST.pieces[piece_of(them, st.captured)][to];
@@ -351,6 +379,7 @@ bool Position::is_in_check() const {
   return is_square_attacked(sq, enemy);
 }
 void Position::unmake_move(const StateInfo &st) {
+  dbg_path_pop();
   Move m = st.move;
   int from = move_from(m);
   int to = move_to(m);

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <thread>
 
 UCIOptions uci_options;
 
@@ -23,6 +24,7 @@ static void print_options() {
   std::cout << "option name Hash type spin default 100 min 1 max 4096\n";
   std::cout << "option name Clear Hash type button\n";
   std::cout << "option name Book File type string default \n";
+  std::cout << "option name MultiPV type spin default 1 min 1 max 500\n";
 }
 
 static void handle_setoption(const std::string &line) {
@@ -57,9 +59,23 @@ static void handle_setoption(const std::string &line) {
     // TT is fixed at 100 MB for now — resizing would need re-init
   } else if (name == "Clear Hash") {
     tt.table.assign(tt.size, TTEntry{});
+  } else if (name == "MultiPV") {
+    int n = std::stoi(value);
+    if (n < 1)
+      n = 1;
+    if (n > 255)
+      n = 255;
+    uci_options.multipv = n;
   } else if (name == "Book File") {
     uci_options.book_file = value;
     book_open(value);
+  } else if (name == "MultiPV") {
+    int n = std::stoi(value);
+    if (n < 1)
+      n = 1;
+    if (n > 500)
+      n = 500;
+    uci_options.multipv = n;
   }
 }
 
@@ -94,15 +110,11 @@ static void handle_position(const std::string &line, Position &pos) {
 }
 
 static void handle_go(const std::string &line, Position &pos) {
-  // Probe opening book first
-  Move book_move = book_probe(pos);
-  if (book_move != Move{}) {
-    std::cout << "bestmove " << Util::move_to_string(book_move) << "\n";
-    return;
-  }
-
   SearchLimits limits = parse_go(line);
-  iterative_deepening(pos, limits);
+  limits.multipv = uci_options.multipv;
+
+  Move book_move = book_probe(pos);
+  iterative_deepening(pos, limits, book_move);
 }
 
 void uci_loop() {
@@ -111,6 +123,7 @@ void uci_loop() {
 
   std::cout.setf(std::ios::unitbuf);
 
+  std::thread search_thread;
   std::string line;
   while (std::getline(std::cin, line)) {
     if (!line.empty() && line.back() == '\r')
@@ -125,6 +138,8 @@ void uci_loop() {
       std::cout << "readyok\n";
 
     } else if (line == "ucinewgame") {
+      if (search_thread.joinable())
+        search_thread.join();
       tt.table.assign(tt.size, TTEntry{});
       clear_search_tables();
       pos.set_startpos();
@@ -133,17 +148,30 @@ void uci_loop() {
       handle_setoption(line);
 
     } else if (line.rfind("position", 0) == 0) {
+      if (search_thread.joinable())
+        search_thread.join();
       handle_position(line, pos);
 
     } else if (line.rfind("go", 0) == 0) {
-      handle_go(line, pos);
+      if (search_thread.joinable())
+        search_thread.join();
+      std::string go_line = line;
+      search_thread = std::thread([&pos, go_line] { handle_go(go_line, pos); });
 
     } else if (line == "stop") {
       search_stopped = true;
+      if (search_thread.joinable())
+        search_thread.join();
 
     } else if (line == "quit") {
       search_stopped = true;
+      if (search_thread.joinable())
+        search_thread.join();
       break;
     }
   }
+
+  search_stopped = true;
+  if (search_thread.joinable())
+    search_thread.join();
 }

@@ -164,6 +164,13 @@ void gen_pawn_moves(const Position &pos, MoveList &ml) {
   if (pos.ep_square != NO_SQUARE) {
     Bitboard ep_bb = sq_bb(pos.ep_square);
 
+    // The EP target must sit on the rank the capturing pawn would arrive on:
+    // rank 6 for White (after a black double push), rank 3 for Black. This
+    // guards against stale EP squares leaking through null moves / side flips.
+    const Bitboard ep_rank = (us == WHITE) ? RANK_6 : RANK_3;
+    if (!(ep_bb & ep_rank))
+      return;
+
     Bitboard can_capture_right =
         (us == WHITE) ? shift_ne(pawns) & ep_bb : shift_se(pawns) & ep_bb;
     Bitboard can_capture_left =
@@ -423,6 +430,9 @@ static void gen_pawn_captures(const Position &pos, MoveList &ml) {
   // EP capture
   if (pos.ep_square != NO_SQUARE) {
     Bitboard ep = sq_bb(pos.ep_square);
+    const Bitboard ep_rank = (us == WHITE) ? RANK_6 : RANK_3;
+    if (!(ep & ep_rank))
+      return;
     if ((us == WHITE) ? (shift_ne(pawns) & ep) : (shift_se(pawns) & ep))
       ml.add(make_move(pos.ep_square - cap_right, pos.ep_square, EP_CAPTURE));
     if ((us == WHITE) ? (shift_nw(pawns) & ep) : (shift_sw(pawns) & ep))
