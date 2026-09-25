@@ -6,7 +6,6 @@
 #include "search.h"
 #include "tt.h"
 #include "types.h"
-#include "utils.h"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -90,7 +89,10 @@ static void handle_position(const std::string &line, Position &pos) {
     auto moves_pos = rest.find(" moves ");
     std::string fen_part =
         (moves_pos == std::string::npos) ? rest : rest.substr(0, moves_pos);
-    set_fen(pos, fen_part);
+    // A malformed FEN must not corrupt the board: fall back to startpos so a
+    // subsequent `go` never searches a broken/empty position.
+    if (!set_fen(pos, fen_part))
+      pos.set_startpos();
     rest = (moves_pos == std::string::npos) ? "" : rest.substr(moves_pos + 7);
   }
 
