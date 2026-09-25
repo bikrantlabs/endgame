@@ -36,21 +36,31 @@ static int fen_char_to_piece(char c) {
 }
 
 bool set_fen(Position &pos, const std::string &fen) {
-  pos.clear();
-
   std::istringstream ss(fen);
   std::string board, turn, castling, ep, hc, fn;
   ss >> board >> turn >> castling >> ep >> hc >> fn;
 
-  // Piece placement
-  int sq = 56;
+  if (board.empty() || turn.empty() || castling.empty() || ep.empty())
+    return false;
+
+  // Parse into local buffers first so a bad FEN never leaves `pos` partially
+  // modified (which would leave an empty/corrupt board for the search).
+  Bitboard pieces[COLOR_NB][PIECE_TYPE_NB] = {{0}};
+  int rank = 7;
+  int file = 0;
+  int placed = 0;
   for (char c : board) {
     if (c == '/') {
-      sq -= 16;
+      if (file != 8 || rank == 0)
+        return false;
+      rank--;
+      file = 0;
       continue;
     }
     if (c >= '1' && c <= '8') {
-      sq += (c - '0');
+      file += (c - '0');
+      if (file > 8)
+        return false;
       continue;
     }
     int piece = fen_char_to_piece(c);
@@ -59,9 +69,18 @@ bool set_fen(Position &pos, const std::string &fen) {
     Color color = (piece < B_PAWN) ? WHITE : BLACK;
     PieceType pt =
         static_cast<PieceType>((piece < B_PAWN) ? piece : piece - B_PAWN);
-    pos.place_piece(color, pt, sq);
-    sq++;
+    pieces[color][pt] |= sq_bb(sq_of(file, rank));
+    file++;
+    placed++;
   }
+
+  if (file != 8 || rank != 0 || placed == 0)
+    return false; // piece placement didn't fill exactly one board
+
+  pos.clear();
+  for (int c = 0; c < COLOR_NB; ++c)
+    for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
+      pos.pieces[c][pt] = pieces[c][pt];
 
   pos.side_to_move = (turn == "b") ? BLACK : WHITE;
 
@@ -79,6 +98,8 @@ bool set_fen(Position &pos, const std::string &fen) {
 
   if (ep != "-") {
     pos.ep_square = parse_square(ep);
+    if (pos.ep_square == NO_SQUARE)
+      return false;
   } else {
     pos.ep_square = NO_SQUARE;
   }

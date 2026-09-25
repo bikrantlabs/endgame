@@ -97,3 +97,18 @@ sudo apt insall lldb
 > **Note:** The first run takes a few minutes because vcpkg is downloading and compiling dependencies. Every run after that is fast — only changed files get recompiled.
 
 ---
+
+#### For search testing
+```
+cmake -S . -B build-memory -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-memory
+/usr/bin/time -l ./build-memory/endgame
+
+position fen r1bq1r1k/2p2bpp/p2p1np1/1p1p4/1P1P4/2N1PN2/1P1Q1BPP/R1B2RK1 w - - 0 1
+
+go depth 8
+```
+
+#### For memory usage testing
+`/usr/bin/time -l ./build-memory/endgame`
+
+

@@ -88,3 +88,9 @@ public:
 
 // Print the board. If highlight != 0, marks those squares with '*'.
 void print_board(const Position &pos, Bitboard highlight = 0ULL);
+
+// Debug move-path tracking (make/unmake stack)
+void dbg_path_push(Move m);
+void dbg_path_pop();
+void dbg_path_dump();
+void dbg_path_reset();
