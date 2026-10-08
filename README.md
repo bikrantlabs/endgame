@@ -1,3 +1,7 @@
+**Endgame** is a chess engine built from the ground up in C++, using classical search algorithms and handcrafted heuristics rather than neural networks or deep learning.
+
+It uses **Negamax with iterative deepening**, enhanced by several search optimizations, including **alpha-beta pruning, null-move pruning, quiescence search, and move ordering**.
+
 # Project Setup Guide
 
 ## Prerequisites
@@ -94,7 +98,6 @@ sudo apt insall lldb
 2. Install VSCode Extension: `CodeLLDB` and `C/C++ extension`
 > Hit `F5` to start debugging.
 
-> **Note:** The first run takes a few minutes because vcpkg is downloading and compiling dependencies. Every run after that is fast — only changed files get recompiled.
 
 ---
 
